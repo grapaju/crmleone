@@ -22,6 +22,7 @@ api/php-api-crm/vendor/
 
 # Uploads and temporary files
 api/php-api-crm/uploads/
+api/php-api-crm/public/uploads/
 tmp/
 
 # IDE / OS
