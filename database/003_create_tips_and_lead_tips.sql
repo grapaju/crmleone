@@ -1,0 +1,21 @@
+-- Tabela de dicas padrão
+CREATE TABLE tips (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    tipo ENUM('ligacao', 'whatsapp', 'email', 'outro') NOT NULL,
+    mensagem VARCHAR(255) NOT NULL,
+    ativa BOOLEAN DEFAULT TRUE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Tabela de ligação entre lead e dica
+CREATE TABLE lead_tips (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    lead_id INT NOT NULL,
+    tip_id INT NOT NULL,
+    ativa BOOLEAN DEFAULT TRUE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE,
+    FOREIGN KEY (tip_id) REFERENCES tips(id) ON DELETE CASCADE
+);
