@@ -2,6 +2,9 @@
 
 Documentação rápida do projeto frontend + API local (PHP) usada no workspace.
 
+## Deploy em producao
+- Guia recomendado para aaPanel: veja `DEPLOY_AAPANEL.md` na raiz do projeto.
+
 ## Visão geral
 - Frontend: React + Vite (em `src/`).
 - Backend: PHP API localizada em `api/php-api-crm/public/`.
