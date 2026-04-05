@@ -42,7 +42,7 @@ const SalesTableForm = () => {
     const loadProjects = async () => {
       try {
         const res = await fetch(
-          "http://localhost/v4/api/php-api-crm/public/projects.php"
+          "/api/projects.php"
         );
         const data = await res.json();
         setProjects(data);

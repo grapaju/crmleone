@@ -26,7 +26,7 @@ class Unit
         $this->availableColumns = [];
 
         try {
-            $stmt = $this->pdo->prepare("SELECT TABLE_NAME FROM information_schema.tables WHERE table_schema = DATABASE() AND TABLE_NAME IN ('unidades','units')");
+            $stmt = $this->pdo->prepare("SELECT table_name FROM information_schema.tables WHERE table_name IN ('unidades','units')");
             $stmt->execute();
             $rows = $stmt->fetchAll(PDO::FETCH_COLUMN);
             if (in_array('units', $rows)) {
@@ -55,8 +55,8 @@ class Unit
         // Detect real existing columns to build dynamic queries
         try {
             if ($this->table) {
-                $stmt = $this->pdo->prepare("DESCRIBE `{$this->table}`");
-                $stmt->execute();
+                $stmt = $this->pdo->prepare("SELECT column_name FROM information_schema.columns WHERE table_name = ?");
+                $stmt->execute([$this->table]);
                 $rows = $stmt->fetchAll(PDO::FETCH_COLUMN);
                 if (is_array($rows)) {
                     $this->availableColumns = array_flip($rows);
@@ -75,14 +75,14 @@ class Unit
     public function getAll()
     {
         if (!$this->table) return [];
-        $stmt = $this->pdo->query("SELECT * FROM `{$this->table}`");
+        $stmt = $this->pdo->query("SELECT * FROM {$this->table}");
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     public function getById($id)
     {
         if (!$this->table) return null;
-        $stmt = $this->pdo->prepare("SELECT * FROM `{$this->table}` WHERE id = ?");
+        $stmt = $this->pdo->prepare("SELECT * FROM {$this->table} WHERE id = ?");
         $stmt->execute([$id]);
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
@@ -91,7 +91,7 @@ class Unit
     {
         if (!$this->table) return [];
         $projCol = $this->col('project');
-        $stmt = $this->pdo->prepare("SELECT * FROM `{$this->table}` WHERE {$projCol} = ?");
+        $stmt = $this->pdo->prepare("SELECT * FROM {$this->table} WHERE {$projCol} = ?");
         $stmt->execute([$projectId]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
@@ -155,8 +155,8 @@ class Unit
 
         $columns = array_keys($filtered);
         $placeholders = implode(', ', array_fill(0, count($columns), '?'));
-        $colList = implode(', ', array_map(fn($c) => "`$c`", $columns));
-        $sql = "INSERT INTO `{$this->table}` ($colList) VALUES ($placeholders)";
+        $colList = implode(', ', $columns);
+        $sql = "INSERT INTO {$this->table} ($colList) VALUES ($placeholders)";
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute(array_values($filtered));
         return $this->pdo->lastInsertId();
@@ -207,13 +207,13 @@ class Unit
         $values = [];
         foreach ($mapped as $col => $val) {
             if (isset($this->availableColumns[$col])) {
-                $sets[] = "`$col` = ?";
+                $sets[] = "$col = ?";
                 $values[] = $val;
             }
         }
         if (!$sets) return false;
         $values[] = $id;
-        $sql = "UPDATE `{$this->table}` SET " . implode(', ', $sets) . " WHERE id = ?";
+        $sql = "UPDATE {$this->table} SET " . implode(', ', $sets) . " WHERE id = ?";
         $stmt = $this->pdo->prepare($sql);
         return $stmt->execute($values);
     }
@@ -223,7 +223,7 @@ class Unit
         if (!$this->table) {
             throw new Exception('Units table not found in database');
         }
-        $stmt = $this->pdo->prepare("DELETE FROM `{$this->table}` WHERE id = ?");
+        $stmt = $this->pdo->prepare("DELETE FROM {$this->table} WHERE id = ?");
         return $stmt->execute([$id]);
     }
 
@@ -253,7 +253,8 @@ class Unit
             if (!$cubRow) {
                 return ['updated' => 0, 'message' => 'Nenhum registro CUB encontrado'];
             }
-            $valorAtual = isset($cubRow['valorAtual']) ? (float)$cubRow['valorAtual'] : null;
+            $valorAtualRaw = $cubRow['valorAtual'] ?? $cubRow['valoratual'] ?? $cubRow['valor_atual'] ?? null;
+            $valorAtual = $valorAtualRaw !== null ? (float)$valorAtualRaw : null;
             $cubId = $cubRow['id'] ?? null;
             if (!$valorAtual) {
                 return ['updated' => 0, 'message' => 'Registro CUB sem valorAtual'];
@@ -274,7 +275,7 @@ class Unit
             if (isset($this->availableColumns['floor_factor'])) {
                 // Definir fatores conforme regra (6..17) limites; <6 usa 3.81; >17 usa 5.72
                 $towerFilterSqlBF = $towerId ? " AND {$this->col('tower')} = :towerFilterBF" : '';
-                $sqlBF = "UPDATE `{$this->table}` SET floor_factor = CASE 
+                $sqlBF = "UPDATE {$this->table} SET floor_factor = CASE 
                     WHEN floor IS NOT NULL THEN (
                         CASE 
                            WHEN floor < 6 THEN 3.81
@@ -313,7 +314,7 @@ class Unit
             if ($hasValorAtualizado) {
                 if (isset($this->availableColumns['floor_factor'])) {
                     $sets[] = "valor_atualizado = CASE 
-                        WHEN (area_privativa IS NOT NULL AND :cubRef > 0) THEN (area_privativa * :cubRef * IFNULL(floor_factor,1))
+                        WHEN (area_privativa IS NOT NULL AND :cubRef > 0) THEN (area_privativa * :cubRef * COALESCE(floor_factor,1))
                         ELSE valor_atualizado END";
                 } else {
                     $sets[] = "valor_atualizado = CASE 
@@ -331,8 +332,9 @@ class Unit
             // Registrar histórico antes do update se tabela unit_cub_history existir
             $historyExists = false;
             try {
-                $chk = $this->pdo->query("SHOW TABLES LIKE 'unit_cub_history'");
-                $historyExists = $chk && $chk->fetchColumn();
+                $chk = $this->pdo->prepare("SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'unit_cub_history'");
+                $chk->execute();
+                $historyExists = ((int)$chk->fetchColumn()) > 0;
             } catch (Throwable $e) { /* ignore */
             }
 
@@ -341,29 +343,29 @@ class Unit
                 if (isset($this->availableColumns['floor_factor'])) {
                     $historyInsert = "INSERT INTO unit_cub_history (unit_id, cub_id, cub_valor, old_cub_referencia, old_id_cub_atual, old_valor_atualizado, new_cub_referencia, new_id_cub_atual, new_valor_atualizado)
                         SELECT id as unit_id, :cubId as cub_id, :cubVal as cub_valor,
-                            IFNULL(cub_referencia, NULL) as old_cub_referencia,
-                            IFNULL(id_cub_atual, NULL) as old_id_cub_atual,
-                            IFNULL(valor_atualizado, NULL) as old_valor_atualizado,
+                            COALESCE(cub_referencia, NULL) as old_cub_referencia,
+                            COALESCE(id_cub_atual, NULL) as old_id_cub_atual,
+                            COALESCE(valor_atualizado, NULL) as old_valor_atualizado,
                             :cubVal as new_cub_referencia,
                             :cubId as new_id_cub_atual,
                             CASE 
-                               WHEN (area_privativa IS NOT NULL AND :cubVal > 0) THEN (area_privativa * :cubVal * IFNULL(floor_factor,1))
+                               WHEN (area_privativa IS NOT NULL AND :cubVal > 0) THEN (area_privativa * :cubVal * COALESCE(floor_factor,1))
                                ELSE valor_atualizado
                             END as new_valor_atualizado
-                        FROM `{$this->table}` WHERE 1=1 $towerClause";
+                        FROM {$this->table} WHERE 1=1 $towerClause";
                 } else {
                     $historyInsert = "INSERT INTO unit_cub_history (unit_id, cub_id, cub_valor, old_cub_referencia, old_id_cub_atual, old_valor_atualizado, new_cub_referencia, new_id_cub_atual, new_valor_atualizado)
                         SELECT id as unit_id, :cubId as cub_id, :cubVal as cub_valor,
-                            IFNULL(cub_referencia, NULL) as old_cub_referencia,
-                            IFNULL(id_cub_atual, NULL) as old_id_cub_atual,
-                            IFNULL(valor_atualizado, NULL) as old_valor_atualizado,
+                            COALESCE(cub_referencia, NULL) as old_cub_referencia,
+                            COALESCE(id_cub_atual, NULL) as old_id_cub_atual,
+                            COALESCE(valor_atualizado, NULL) as old_valor_atualizado,
                             :cubVal as new_cub_referencia,
                             :cubId as new_id_cub_atual,
                             CASE 
                                WHEN (area_privativa IS NOT NULL AND :cubVal > 0) THEN (area_privativa * :cubVal)
                                ELSE valor_atualizado
                             END as new_valor_atualizado
-                        FROM `{$this->table}` WHERE 1=1 $towerClause";
+                        FROM {$this->table} WHERE 1=1 $towerClause";
                 }
                 $hStmt = $this->pdo->prepare($historyInsert);
                 $hStmt->bindValue(':cubId', $cubId);
@@ -373,7 +375,7 @@ class Unit
             }
 
             $towerFilterSql = $towerId ? " AND {$this->col('tower')} = :towerFilter" : '';
-            $sql = "UPDATE `{$this->table}` SET " . implode(', ', $sets) . " WHERE 1=1 $towerFilterSql";
+            $sql = "UPDATE {$this->table} SET " . implode(', ', $sets) . " WHERE 1=1 $towerFilterSql";
             $stmt = $this->pdo->prepare($sql);
             $stmt->bindValue(':cubRef', $valorAtual);
             if ($hasIdCubAtual) $stmt->bindValue(':idCub', $cubId);
@@ -385,7 +387,7 @@ class Unit
                 // incluir algumas amostras para depuração
                 try {
                     $towerClauseDbg = $towerId ? " AND {$this->col('tower')} = :towerFilterDBG" : '';
-                    $dbgSql = "SELECT id, {$this->col('floor')} AS floor_num, area_privativa, floor_factor, valor_atualizado FROM `{$this->table}` WHERE area_privativa IS NOT NULL $towerClauseDbg ORDER BY id DESC LIMIT 5";
+                    $dbgSql = "SELECT id, {$this->col('floor')} AS floor_num, area_privativa, floor_factor, valor_atualizado FROM {$this->table} WHERE area_privativa IS NOT NULL $towerClauseDbg ORDER BY id DESC LIMIT 5";
                     $dbgStmt = $this->pdo->prepare($dbgSql);
                     if ($towerId) $dbgStmt->bindValue(':towerFilterDBG', $towerId);
                     $dbgStmt->execute();

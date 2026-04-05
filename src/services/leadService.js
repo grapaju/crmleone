@@ -3,7 +3,7 @@ import { appointmentService } from './appointmentService';
 import { propertyService } from './propertyService';
 import { differenceInDays } from 'date-fns';
 
-const API_URL = 'http://localhost/v4/api/php-api-crm/public/leads.php';
+const API_URL = '/api/leads.php';
 
 const calculateLeadScore = async (lead) => {
   let score = 0;

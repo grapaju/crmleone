@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost/v4/api/php-api-crm/public/contacts.php';
+const API_URL = '/api/contacts.php';
 
 export const contactService = {
   async getContacts() {

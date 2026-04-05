@@ -22,7 +22,7 @@ try {
 function tableExists($pdo, $name)
 {
     try {
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?");
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM information_schema.tables WHERE table_name = ?");
         $stmt->execute([$name]);
         return (bool) $stmt->fetchColumn();
     } catch (Exception $e) {

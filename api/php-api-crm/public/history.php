@@ -6,7 +6,7 @@ header('Content-Type: application/json; charset=utf-8');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
 
-require_once __DIR__ . '/../src/config/Database.php';
+require_once __DIR__ . '/../src/config/database.php';
 
 function respond($data, $code = 200) {
     http_response_code($code);
@@ -20,7 +20,7 @@ try {
 
     if ($method === 'GET') {
         // return last 50 history entries (including type when present)
-        $stmt = $db->prepare("SELECT id, table_id, date, channel, recipients, status, `type` FROM history ORDER BY date DESC LIMIT 50");
+        $stmt = $db->prepare("SELECT id, table_id, date, channel, recipients, status, \"type\" FROM history ORDER BY date DESC LIMIT 50");
         $stmt->execute();
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
         respond($rows);
@@ -41,7 +41,7 @@ try {
         }
         $status = $data['status'] ?? 'Enviado';
         if ($type !== null) {
-            $stmt = $db->prepare("INSERT INTO history (table_id, channel, recipients, status, `type`) VALUES (:table_id, :channel, :recipients, :status, :type)");
+            $stmt = $db->prepare("INSERT INTO history (table_id, channel, recipients, status, \"type\") VALUES (:table_id, :channel, :recipients, :status, :type)");
             $stmt->execute([':table_id' => $tableId, ':channel' => $channel, ':recipients' => $recipients, ':status' => $status, ':type' => $type]);
         } else {
             $stmt = $db->prepare("INSERT INTO history (table_id, channel, recipients, status) VALUES (:table_id, :channel, :recipients, :status)");

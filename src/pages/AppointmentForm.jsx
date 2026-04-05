@@ -197,7 +197,7 @@ const AppointmentForm = () => {
     setErrors({});
 
     // helper: format Date -> 'YYYY-MM-DD HH:MM:SS' in local timezone
-    const formatLocalMySQL = (d) => {
+    const formatLocalDateTime = (d) => {
       if (!d) return null;
       const date = d instanceof Date ? d : new Date(d);
       const yyyy = date.getFullYear();
@@ -266,10 +266,10 @@ const AppointmentForm = () => {
     const submissionData = {
       ...autoFormData,
       id: autoFormData.id ?? (isEditing ? id : undefined),
-      start: formatLocalMySQL(autoFormData.start),
+      start: formatLocalDateTime(autoFormData.start),
       end: autoFormData.end
-        ? formatLocalMySQL(autoFormData.end)
-        : formatLocalMySQL(
+        ? formatLocalDateTime(autoFormData.end)
+        : formatLocalDateTime(
             new Date(
               (autoFormData.start instanceof Date
                 ? autoFormData.start

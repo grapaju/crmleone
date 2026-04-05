@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost/v4/api/php-api-crm/public/agents.php';
+const API_URL = '/api/agents.php';
 
 // Função auxiliar para formatar telefone
 const formatPhone = (value) => {

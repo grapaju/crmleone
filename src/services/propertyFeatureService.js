@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost/v4/api/php-api-crm/public/property_features.php';
+const API_URL = '/api/property_features.php';
 
 const savePropertyFeatures = async (propertyId, featureIds = []) => {
   const payload = { property_id: propertyId, features: featureIds };

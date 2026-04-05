@@ -10,7 +10,7 @@ class Feature
         $this->pdo = $db;
         // Detect whether DB uses 'features' (english) or 'caracteristicas' (portuguese)
         try {
-            $stmt = $this->pdo->prepare("SELECT TABLE_NAME FROM information_schema.tables WHERE table_schema = DATABASE() AND TABLE_NAME IN ('features','caracteristicas')");
+            $stmt = $this->pdo->prepare("SELECT table_name FROM information_schema.tables WHERE table_name IN ('features','caracteristicas')");
             $stmt->execute();
             $rows = $stmt->fetchAll(PDO::FETCH_COLUMN);
             if (in_array('features', $rows)) {
@@ -34,14 +34,14 @@ class Feature
 
     public function getAll()
     {
-    $sql = "SELECT id, " . $this->nameColumn . " AS name FROM `" . $this->tableName . "` ORDER BY id";
+    $sql = "SELECT id, " . $this->nameColumn . " AS name FROM " . $this->tableName . " ORDER BY id";
     $stmt = $this->pdo->query($sql);
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     public function getById($id)
     {
-    $sql = "SELECT id, " . $this->nameColumn . " AS name FROM `" . $this->tableName . "` WHERE id = ?";
+    $sql = "SELECT id, " . $this->nameColumn . " AS name FROM " . $this->tableName . " WHERE id = ?";
     $stmt = $this->pdo->prepare($sql);
     $stmt->execute([$id]);
     return $stmt->fetch(PDO::FETCH_ASSOC);
@@ -50,7 +50,7 @@ class Feature
     public function create($data)
     {
     $col = $this->nameColumn;
-    $sql = "INSERT INTO `" . $this->tableName . "` ($col) VALUES (?)";
+    $sql = "INSERT INTO " . $this->tableName . " ($col) VALUES (?)";
     $stmt = $this->pdo->prepare($sql);
     $stmt->execute([$data['name']]);
         return $this->pdo->lastInsertId();
@@ -59,14 +59,14 @@ class Feature
     public function update($id, $data)
     {
     $col = $this->nameColumn;
-    $sql = "UPDATE `" . $this->tableName . "` SET $col = ? WHERE id = ?";
+    $sql = "UPDATE " . $this->tableName . " SET $col = ? WHERE id = ?";
     $stmt = $this->pdo->prepare($sql);
     return $stmt->execute([$data['name'], $id]);
     }
 
     public function delete($id)
     {
-    $sql = "DELETE FROM `" . $this->tableName . "` WHERE id = ?";
+    $sql = "DELETE FROM " . $this->tableName . " WHERE id = ?";
     $stmt = $this->pdo->prepare($sql);
     return $stmt->execute([$id]);
     }

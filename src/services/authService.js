@@ -20,7 +20,7 @@ const mockUsers = [
 export const authService = {
   async login(email, password) {
     try {
-      const response = await fetch('http://localhost/v4/api/php-api-crm/public/login.php', {
+      const response = await fetch('/api/login.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),

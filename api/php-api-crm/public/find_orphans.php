@@ -1,19 +1,15 @@
 <?php
 // find_orphans.php
-// Ajuste estas credenciais antes de rodar:
-$host = '127.0.0.1';
-$db   = 'crm_imoveis';
-$user = 'root';
-$pass = ''; // coloque a senha do seu MySQL aqui, se houver
+require_once __DIR__ . '/../src/config/database.php';
 
-$uploadsDir = __DIR__ . '/uploads';
+$uploadsDir = __DIR__ . '/../uploads';
 if (!is_dir($uploadsDir)) {
     echo "Pasta uploads não encontrada em: $uploadsDir\n";
     exit(1);
 }
 
 try {
-    $pdo = new PDO("mysql:host=$host;dbname=$db;charset=utf8mb4", $user, $pass, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+    $pdo = getDatabaseConnection();
 } catch (Exception $e) {
     echo "Erro conectando ao DB: " . $e->getMessage() . "\n";
     exit(1);

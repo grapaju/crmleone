@@ -14,20 +14,19 @@ try {
 }
 
 $sql = <<<SQL
-CREATE TABLE IF NOT EXISTS `agenda` (
-  `id` INT NOT NULL AUTO_INCREMENT,
-  `titulo` VARCHAR(255) NOT NULL,
-  `tipo` ENUM('Visita', 'Reunião', 'Ligação', 'Outro') NOT NULL,
-  `data_inicio` DATETIME NOT NULL,
-  `data_fim` DATETIME NOT NULL,
-  `lead_id` INT NULL,
-  `imovel_id` INT NULL,
-  `unidade_id` INT NULL,
-  `usuario_id` INT NOT NULL,
-  `status` ENUM('Confirmado', 'Pendente', 'Cancelado', 'Realizado') NOT NULL,
-  `observacoes` TEXT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS agenda (
+    id BIGSERIAL PRIMARY KEY,
+    titulo VARCHAR(255) NOT NULL,
+    tipo VARCHAR(20) NOT NULL CHECK (tipo IN ('Visita', 'Reunião', 'Ligação', 'Outro')),
+    data_inicio TIMESTAMP NOT NULL,
+    data_fim TIMESTAMP NOT NULL,
+    lead_id BIGINT NULL,
+    imovel_id BIGINT NULL,
+    unidade_id BIGINT NULL,
+    usuario_id BIGINT NOT NULL,
+    status VARCHAR(20) NOT NULL CHECK (status IN ('Confirmado', 'Pendente', 'Cancelado', 'Realizado')),
+    observacoes TEXT NULL
+);
 SQL;
 
 try {

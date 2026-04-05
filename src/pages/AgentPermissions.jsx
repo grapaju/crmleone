@@ -37,7 +37,7 @@ const AgentPermissions = () => {
       setLoading(true);
       try {
         const [agentsRes, propsRes, projRes] = await Promise.all([
-          agentService.getAgents?.() || fetch('http://localhost/v4/api/php-api-crm/public/agents.php').then(r=>r.json()),
+          agentService.getAgents?.() || fetch('/api/agents.php').then(r=>r.json()),
           propertyService.getProperties(),
           projectService.getProjects().catch(()=>[])
         ]);

@@ -14,23 +14,20 @@ class AgentPropertyAccess
     private function ensureTable()
     {
         try {
-            $check = $this->db->query("SHOW TABLES LIKE 'agent_property_access'");
-            if ($check->rowCount() === 0) {
-                $sql = "CREATE TABLE IF NOT EXISTS `agent_property_access` (
-                    `id` INT NOT NULL AUTO_INCREMENT,
-                    `agent_id` INT NOT NULL,
-                    `property_id` INT NOT NULL,
-                    `can_edit` TINYINT(1) DEFAULT 0,
-                    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    PRIMARY KEY (`id`),
-                    UNIQUE KEY `uniq_agent_property` (`agent_id`, `property_id`),
-                    KEY `agent_idx` (`agent_id`),
-                    KEY `property_idx` (`property_id`)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
+            $check = $this->db->prepare("SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'agent_property_access'");
+            $check->execute();
+            if ((int)$check->fetchColumn() === 0) {
+                $sql = "CREATE TABLE IF NOT EXISTS agent_property_access (
+                    id BIGSERIAL PRIMARY KEY,
+                    agent_id BIGINT NOT NULL,
+                    property_id BIGINT NOT NULL,
+                    can_edit BOOLEAN DEFAULT FALSE,
+                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    CONSTRAINT uniq_agent_property UNIQUE (agent_id, property_id)
+                );";
                 $this->db->exec($sql);
-                // tentar adicionar FKs (ignorando erro se não existir)
-                try { $this->db->exec("ALTER TABLE `agent_property_access` ADD CONSTRAINT `fk_access_agent` FOREIGN KEY (`agent_id`) REFERENCES `agents`(`id`) ON DELETE CASCADE"); } catch(Exception $e) {}
-                try { $this->db->exec("ALTER TABLE `agent_property_access` ADD CONSTRAINT `fk_access_property` FOREIGN KEY (`property_id`) REFERENCES `properties`(`id`) ON DELETE CASCADE"); } catch(Exception $e) {}
+                $this->db->exec("CREATE INDEX IF NOT EXISTS agent_property_access_agent_idx ON agent_property_access (agent_id)");
+                $this->db->exec("CREATE INDEX IF NOT EXISTS agent_property_access_property_idx ON agent_property_access (property_id)");
             }
         } catch (Exception $e) {
             // silencioso: se não conseguir checar/criar, as consultas subsequentes podem falhar e serão tratadas

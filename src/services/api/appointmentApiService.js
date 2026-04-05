@@ -1,4 +1,4 @@
-const BASE_URL = 'http://localhost/v4/api/php-api-crm/public';
+const BASE_URL = '/api';
 // use calendar.php endpoint implemented in the backend
 const RESOURCE = `${BASE_URL}/calendar.php`;
 

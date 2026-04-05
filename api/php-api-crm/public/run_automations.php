@@ -6,7 +6,7 @@
 @error_reporting(E_ALL & ~E_NOTICE & ~E_WARNING);
 header('Content-Type: application/json; charset=utf-8');
 
-require_once __DIR__ . '/../src/config/Database.php';
+require_once __DIR__ . '/../src/config/database.php';
 require_once __DIR__ . '/../src/models/SalesTable.php';
 require_once __DIR__ . '/../src/lib/send_sales_table_helper.php';
 
@@ -74,7 +74,7 @@ try {
 
     // check history to avoid duplicate send for same table today (type = 'automation')
         try {
-            $hstmt = $db->prepare("SELECT COUNT(*) AS c FROM history WHERE table_id = :table_id AND DATE(date) = DATE(:today) AND `type` = 'automation'");
+            $hstmt = $db->prepare("SELECT COUNT(*) AS c FROM history WHERE table_id = :table_id AND DATE(date) = DATE(:today) AND \"type\" = 'automation'");
             $hstmt->execute([':table_id' => $r['table_id'], ':today' => $now->format('Y-m-d H:i:s')]);
             $hc = $hstmt->fetch(PDO::FETCH_ASSOC);
             if ($hc && isset($hc['c']) && (int)$hc['c'] > 0) {

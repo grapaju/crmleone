@@ -45,7 +45,7 @@ const ContactForm = () => {
     setLoading(true);
     try {
       // Carrega imobiliárias primeiro
-      const imobs = await fetch('http://localhost/v4/api/php-api-crm/public/imobiliarias.php').then(r => r.json());
+      const imobs = await fetch('/api/imobiliarias.php').then(r => r.json());
       setImobiliarias(imobs);
 
 
@@ -81,7 +81,7 @@ const ContactForm = () => {
   const handleAddImobiliaria = async () => {
     if (!newImobiliaria.trim()) return;
     // Salva na API
-    const response = await fetch('http://localhost/v4/api/php-api-crm/public/imobiliarias.php', {
+    const response = await fetch('/api/imobiliarias.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: newImobiliaria }),

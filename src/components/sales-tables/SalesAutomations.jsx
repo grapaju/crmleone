@@ -40,7 +40,7 @@ const SalesAutomations = ({ automations, onDelete, onToggle }) => {
     (async () => {
       try {
         const res = await fetch(
-          "http://localhost/v4/api/php-api-crm/public/settings.php"
+          "/api/settings.php"
         );
         if (!res.ok) return;
         const json = await res.json();
@@ -172,7 +172,7 @@ const SalesAutomations = ({ automations, onDelete, onToggle }) => {
       };
       if (smtpFrom) payload.smtp_from = smtpFrom;
       const res = await fetch(
-        "http://localhost/v4/api/php-api-crm/public/send_sales_table.php",
+        "/api/send_sales_table.php",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

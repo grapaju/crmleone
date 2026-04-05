@@ -10,7 +10,7 @@ class Calendar
         $this->conn = $db;
     }
 
-    // Convert incoming date strings (including ISO with timezone) to server-local MySQL datetime
+    // Convert incoming date strings (including ISO with timezone) to server-local SQL datetime
     private function normalizeDates($data)
     {
         if (!is_array($data)) return $data;
@@ -52,7 +52,7 @@ class Calendar
         $data = $this->normalizeDates($data);
 
         $query = "INSERT INTO {$this->table_name} 
-                  (title, description, type, start, end, agent_id, lead_id, property_id, project_id, status) 
+                  (title, description, type, start, \"end\", agent_id, lead_id, property_id, project_id, status) 
                   VALUES (:title, :description, :type, :start, :end, :agent_id, :lead_id, :property_id, :project_id, :status)";
 
         $stmt = $this->conn->prepare($query);
@@ -114,7 +114,7 @@ class Calendar
         $data = $this->normalizeDates($data);
 
         $query = "UPDATE {$this->table_name} 
-                  SET title=:title, description=:description, type=:type, start=:start, end=:end,
+                  SET title=:title, description=:description, type=:type, start=:start, \"end\"=:end,
                       agent_id=:agent_id, lead_id=:lead_id, property_id=:property_id, 
                       project_id=:project_id, status=:status, updated_at=NOW()
                   WHERE id=:id";

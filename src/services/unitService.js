@@ -1,4 +1,4 @@
-const API_URL = "http://localhost/v4/api/php-api-crm/public/units.php";
+const API_URL = "/api/units.php";
 
 async function parseJsonSafe(response) {
   const text = await response.text();

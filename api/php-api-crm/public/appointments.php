@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-require_once __DIR__ . '/../src/config/Database.php';
+require_once __DIR__ . '/../src/config/database.php';
 require_once __DIR__ . '/../src/controllers/CalendarController.php';
 
 // Conexão com DB

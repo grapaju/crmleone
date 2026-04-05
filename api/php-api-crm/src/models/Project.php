@@ -12,7 +12,7 @@ class Project
         $this->columnCache = null;
         // detect features/caracteristicas table naming
         try {
-            $stmt = $this->pdo->prepare("SELECT TABLE_NAME FROM information_schema.tables WHERE table_schema = DATABASE() AND TABLE_NAME IN ('features','caracteristicas')");
+            $stmt = $this->pdo->prepare("SELECT table_name FROM information_schema.tables WHERE table_name IN ('features','caracteristicas')");
             $stmt->execute();
             $rows = $stmt->fetchAll(PDO::FETCH_COLUMN);
             if (in_array('features', $rows)) {
@@ -34,7 +34,8 @@ class Project
     private function columnExists($column)
     {
         if ($this->columnCache === null) {
-            $stmt = $this->pdo->query("DESCRIBE projects");
+            $stmt = $this->pdo->prepare("SELECT column_name FROM information_schema.columns WHERE table_name = 'projects'");
+            $stmt->execute();
             $cols = $stmt->fetchAll(PDO::FETCH_COLUMN);
             $this->columnCache = array_flip($cols);
         }
@@ -45,7 +46,7 @@ class Project
     {
         // Use information_schema to reliably check table existence with prepared statements
         try {
-            $sql = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?";
+            $sql = "SELECT COUNT(*) FROM information_schema.tables WHERE table_name = ?";
             $stmt = $this->pdo->prepare($sql);
             $stmt->execute([$table]);
             return (bool) $stmt->fetchColumn();
@@ -129,7 +130,7 @@ class Project
                 $candidateIds = array_values(array_filter($ids, 'is_numeric'));
                 if (count($candidateIds) > 0) {
                     $placeholders = implode(', ', array_fill(0, count($candidateIds), '?'));
-                    $sql = "SELECT id FROM `" . $this->featuresTable . "` WHERE id IN ($placeholders)";
+                    $sql = "SELECT id FROM " . $this->featuresTable . " WHERE id IN ($placeholders)";
                     $checkStmt = $this->pdo->prepare($sql);
                     $checkStmt->execute($candidateIds);
                     $foundRows = $checkStmt->fetchAll(PDO::FETCH_COLUMN);
@@ -145,8 +146,8 @@ class Project
                 if (count($names) > 0) {
                     // prepare placeholders and lower the comparison
                     $placeholders = implode(', ', array_fill(0, count($names), '?'));
-                    $lowerCols = "LOWER(`" . $this->featuresNameCol . "`)";
-                    $sql = "SELECT id, LOWER(`" . $this->featuresNameCol . "`) as lname FROM `" . $this->featuresTable . "` WHERE $lowerCols IN ($placeholders)";
+                    $lowerCols = "LOWER(" . $this->featuresNameCol . ")";
+                    $sql = "SELECT id, LOWER(" . $this->featuresNameCol . ") as lname FROM " . $this->featuresTable . " WHERE $lowerCols IN ($placeholders)";
                     $lowerNames = array_map(function($n){ return mb_strtolower($n, 'UTF-8'); }, $names);
                     $checkStmt = $this->pdo->prepare($sql);
                     $checkStmt->execute($lowerNames);
@@ -214,7 +215,7 @@ class Project
             }
             // If relational project_features exists, load them
                 if ($this->tableExists('project_features')) {
-                $pf = $this->pdo->prepare("SELECT pf.feature_id, f." . $this->featuresNameCol . " AS name FROM project_features pf LEFT JOIN `" . $this->featuresTable . "` f ON f.id = pf.feature_id WHERE pf.project_id = ?");
+                $pf = $this->pdo->prepare("SELECT pf.feature_id, f." . $this->featuresNameCol . " AS name FROM project_features pf LEFT JOIN " . $this->featuresTable . " f ON f.id = pf.feature_id WHERE pf.project_id = ?");
                 $pf->execute([$row['id']]);
                 $featRows = $pf->fetchAll(PDO::FETCH_ASSOC);
                 $row['projectFeatures'] = array_map(function ($r) {
@@ -237,7 +238,7 @@ class Project
             $row['features'] = $decoded === null ? [] : $decoded;
         }
         if ($row && $this->tableExists('project_features')) {
-            $pf = $this->pdo->prepare("SELECT pf.feature_id, f." . $this->featuresNameCol . " AS name FROM project_features pf LEFT JOIN `" . $this->featuresTable . "` f ON f.id = pf.feature_id WHERE pf.project_id = ?");
+            $pf = $this->pdo->prepare("SELECT pf.feature_id, f." . $this->featuresNameCol . " AS name FROM project_features pf LEFT JOIN " . $this->featuresTable . " f ON f.id = pf.feature_id WHERE pf.project_id = ?");
             $pf->execute([$row['id']]);
             $featRows = $pf->fetchAll(PDO::FETCH_ASSOC);
             $row['projectFeatures'] = array_map(function ($r) {

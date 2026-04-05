@@ -44,7 +44,7 @@ const Settings = () => {
     (async () => {
       try {
         const res = await fetch(
-          "http://localhost/v4/api/php-api-crm/public/settings.php"
+          "/api/settings.php"
         );
         if (!res.ok) return;
         const data = await res.json();
@@ -103,7 +103,7 @@ const Settings = () => {
             : smtpSettings.user || "",
       };
       const res = await fetch(
-        "http://localhost/v4/api/php-api-crm/public/settings.php",
+        "/api/settings.php",
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -137,7 +137,7 @@ const Settings = () => {
         from: smtpSettings.from || smtpSettings.user || "",
       };
       const res = await fetch(
-        "http://localhost/v4/api/php-api-crm/public/test_smtp.php",
+        "/api/test_smtp.php",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

@@ -23,7 +23,7 @@ export default function LeadDetails() {
     (async () => {
       try {
         setLoading(true);
-        const res = await fetch(`http://localhost/v4/api/php-api-crm/public/lead-details.php?id=${leadId}`);
+        const res = await fetch(`/api/lead-details.php?id=${leadId}`);
         if (!res.ok) throw new Error("Erro na resposta da API");
         const data = await res.json();
         setLead(data);

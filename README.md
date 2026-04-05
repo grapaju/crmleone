@@ -5,7 +5,7 @@ Documentação rápida do projeto frontend + API local (PHP) usada no workspace.
 ## Visão geral
 - Frontend: React + Vite (em `src/`).
 - Backend: PHP API localizada em `api/php-api-crm/public/`.
-- Banco de dados: MySQL/MariaDB (configuração em `api/php-api-crm/src/config/Database.php`).
+- Banco de dados: PostgreSQL (configuração em `api/php-api-crm/src/config/database.php`).
 
 ### Gerador Inteligente de Unidades (novo)
 - Substitui o antigo “Cadastro em Lote”.
@@ -17,10 +17,20 @@ Documentação rápida do projeto frontend + API local (PHP) usada no workspace.
 - Evita duplicatas por torre + número da unidade. Quando a obra já existe (tem ID), é possível salvar imediatamente.
 
 ## Como rodar localmente
-1. Backend (XAMPP): coloque a pasta `api/php-api-crm/public` acessível via `http://localhost/v4/api/php-api-crm/public/` (já configurado no workspace).
-2. Frontend:
+1. Banco local (PostgreSQL):
+  - Execute no PowerShell (na raiz do projeto):
+    `powershell -ExecutionPolicy Bypass -File database/setup_postgres_local.ps1 -DbUser postgres -DbName crm_imoveis -LoadSmtpSeed`
+  - O script cria o banco (se nao existir) e aplica `database/schema.postgresql.sql`.
+2. Backend (Apache/XAMPP): coloque a pasta `api/php-api-crm/public` acessível via `http://localhost/v4/api/php-api-crm/public/` (já configurado no workspace).
+  - Defina variáveis de ambiente da API: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`.
+  - Se nao definir, o backend assume `localhost:5432`, banco `crm_imoveis`, usuario `postgres`.
+3. Frontend:
    - Instale dependências: `npm install`
    - Rodar em modo dev: `npm run dev`
+
+### Abandonar MySQL local
+- Este projeto agora usa PostgreSQL como padrão em todo backend.
+- Se ainda houver serviço MySQL/MariaDB ativo na sua máquina, pode desativar para evitar confusão de ambiente.
 
 ## Endpoints importantes
   - GET: retorna lista de automações com campos: `id, table_id, dayOfMonth, sendTime (hora_envio), recipients, recipientsList, status, title, message, tableName`.
@@ -76,7 +86,7 @@ Uso no frontend: service `src/services/performanceService.js` (`fetchPerformance
 
 ### Migrando banco quando já existe
 
-Se você já tem o banco criado com a versão anterior do projeto, adicione as colunas `description` e `tags` em `properties` executando no MySQL/PhpMyAdmin:
+Se você já tem o banco criado com a versão anterior do projeto, adicione as colunas `description` e `tags` em `properties` executando no PostgreSQL:
 
 ```sql
 ALTER TABLE properties

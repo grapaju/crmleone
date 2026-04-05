@@ -3,7 +3,7 @@ import { propertyService } from './propertyService';
 import { agentService } from './agentService';
 
 const API_URL =
-  "http://localhost/v4/api/php-api-crm/public/documents.php";
+  "/api/documents.php";
 
 const safeJson = async (res) => {
   if (!res.ok) {

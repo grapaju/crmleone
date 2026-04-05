@@ -8,7 +8,7 @@ Este projeto é uma API em PHP para um sistema de gerenciamento de imóveis, que
 php-api-crm
 ├── src
 │   ├── config
-│   │   └── database.php          # Configuração da conexão com o banco de dados MySQL
+│   │   └── database.php          # Configuração da conexão com o banco de dados PostgreSQL
 │   ├── controllers
 │   │   ├── PropertyController.php # Controlador para operações CRUD de propriedades
 │   │   ├── ConstructionProjectController.php # Controlador para operações CRUD de projetos de construção
@@ -58,7 +58,7 @@ php-api-crm
    composer install
    ```
 
-4. Configure o arquivo `src/config/database.php` com suas credenciais do banco de dados MySQL.
+4. Configure o arquivo `src/config/database.php` com suas credenciais do banco de dados PostgreSQL.
 
 ## Uso
 
@@ -78,6 +78,6 @@ Por padrão a API define a timezone do PHP para `America/Sao_Paulo`, mas você p
 
 Recomendações:
 - Frontend: preferível enviar datas em ISO 8601 (UTC) — ex: `2025-09-14T00:00:00.000Z`. O backend converte automaticamente para a timezone do servidor antes de salvar.
-- Alternativa simples: enviar strings no formato MySQL local `YYYY-MM-DD HH:MM:SS` (o backend também aceita esse formato).
+- Alternativa simples: enviar strings no formato local `YYYY-MM-DD HH:MM:SS` (o backend também aceita esse formato).
 
 Se o servidor estiver em outro fuso, defina `PHP_APP_TZ` para o fuso desejado para manter consistência entre o que o usuário vê e o que é gravado no banco.

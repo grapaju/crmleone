@@ -1,4 +1,4 @@
-const CUB_API = "http://localhost/v4/api/php-api-crm/public/cub.php";
+const CUB_API = "/api/cub.php";
 
 async function parseJsonSafe(response){
   const text = await response.text();

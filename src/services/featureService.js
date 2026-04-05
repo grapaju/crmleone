@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost/v4/api/php-api-crm/public/features.php';
+const API_URL = '/api/features.php';
 
 const getFeatures = async () => {
   const response = await fetch(API_URL);

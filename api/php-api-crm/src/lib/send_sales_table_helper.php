@@ -2,7 +2,7 @@
 // Helper with reusable send logic for sales tables
 @ini_set('display_errors', '0');
 @error_reporting(E_ALL & ~E_NOTICE & ~E_WARNING);
-require_once __DIR__ . '/../config/Database.php';
+require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../models/SalesTable.php';
 
 function helper_log_send($level, $message, $payload = null)
@@ -319,7 +319,7 @@ function send_sales_table_payload_internal($body)
 
             $typeToSave = $body['type'] ?? $body['__inferred_type'] ?? null;
             if ($typeToSave !== null) {
-                $stmt = $db->prepare("INSERT INTO history (table_id, channel, recipients, status, `type`) VALUES (:table_id, :channel, :recipients, :status, :type)");
+                $stmt = $db->prepare("INSERT INTO history (table_id, channel, recipients, status, \"type\") VALUES (:table_id, :channel, :recipients, :status, :type)");
                 $stmt->execute([':table_id' => $tableId, ':channel' => $channel, ':recipients' => $recipientsStr, ':status' => $histStatus, ':type' => $typeToSave]);
             } else {
                 $stmt = $db->prepare("INSERT INTO history (table_id, channel, recipients, status) VALUES (:table_id, :channel, :recipients, :status)");

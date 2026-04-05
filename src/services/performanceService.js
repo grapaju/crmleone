@@ -7,7 +7,7 @@
 //   previousMonth: { start: 'YYYY-MM-DD', activitiesDone: number, contactsMade: number, dealsClosed: number }
 // }
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost/crm/api';
+const API_BASE = import.meta.env.VITE_API_BASE || '/api';
 
 export async function fetchPerformanceHistory(agentId) {
   const url = new URL(`${API_BASE.replace(/\/$/, '')}/performance_history.php`);

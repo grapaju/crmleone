@@ -1,4 +1,4 @@
-const API_BASE = "http://localhost/v4/api/php-api-crm/public";
+const API_BASE = "/api";
 
 export const salesTableService = {
   // -------- Sales Tables --------

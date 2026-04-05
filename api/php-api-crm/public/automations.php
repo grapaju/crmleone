@@ -9,7 +9,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-require_once __DIR__ . '/../src/config/Database.php';
+require_once __DIR__ . '/../src/config/database.php';
 
 function respond($data, $code = 200)
 {

@@ -137,7 +137,7 @@ const SalesTableSend = () => {
           setRecipientStatuses(initialStatuses);
 
           const res = await fetch(
-            "http://localhost/v4/api/php-api-crm/public/send_sales_table.php",
+            "/api/send_sales_table.php",
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -207,7 +207,7 @@ const SalesTableSend = () => {
         if (isNetworkError) {
           try {
             const ping = await fetch(
-              "http://localhost/v4/api/php-api-crm/public/send_sales_table.php",
+              "/api/send_sales_table.php",
               { method: "GET" }
             );
             if (ping.ok) {

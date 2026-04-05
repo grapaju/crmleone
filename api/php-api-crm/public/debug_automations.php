@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../src/config/Database.php';
+require_once __DIR__ . '/../src/config/database.php';
 header('Content-Type: application/json; charset=utf-8');
 try {
     $db = getDatabaseConnection();

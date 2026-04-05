@@ -12,7 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 $enableLogsEnv = getenv('SALES_TABLES_DEBUG');
 $SALES_TABLES_DEBUG = ($enableLogsEnv !== false) ? filter_var($enableLogsEnv, FILTER_VALIDATE_BOOLEAN) : true;
 
-require_once __DIR__ . '/../src/config/Database.php';
+require_once __DIR__ . '/../src/config/database.php';
 require_once __DIR__ . '/../src/controllers/SalesTableController.php';
 
 $db = getDatabaseConnection();

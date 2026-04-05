@@ -45,7 +45,13 @@ class Document {
         $query = "SELECT * FROM {$this->table} ORDER BY created_at DESC";
         $stmt = $this->conn->prepare($query);
         $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($rows as &$row) {
+            if (!array_key_exists('expiryDate', $row) && array_key_exists('expirydate', $row)) {
+                $row['expiryDate'] = $row['expirydate'];
+            }
+        }
+        return $rows;
     }
 
     // Read one document by id
@@ -55,6 +61,9 @@ class Document {
         $stmt->bindParam(':id', $id, PDO::PARAM_INT);
         $stmt->execute();
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($row && !array_key_exists('expiryDate', $row) && array_key_exists('expirydate', $row)) {
+            $row['expiryDate'] = $row['expirydate'];
+        }
         return $row ? $row : null;
     }
 

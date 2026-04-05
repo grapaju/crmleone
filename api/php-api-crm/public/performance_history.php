@@ -6,7 +6,7 @@ header('Content-Type: application/json; charset=utf-8');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
 
-require_once __DIR__ . '/../src/config/Database.php';
+require_once __DIR__ . '/../src/config/database.php';
 
 function respond($data, $code = 200){
   http_response_code($code);
@@ -121,7 +121,8 @@ try {
 // Utilitário simples para checar existência de coluna
 function columnExists(PDO $db, string $table, string $column): bool {
   try {
-    $stmt = $db->query("SHOW COLUMNS FROM `$table` LIKE " . $db->quote($column));
-    return $stmt->fetch() !== false;
+    $stmt = $db->prepare("SELECT COUNT(*) FROM information_schema.columns WHERE table_name = :table AND column_name = :column");
+    $stmt->execute([':table' => $table, ':column' => $column]);
+    return ((int)$stmt->fetchColumn()) > 0;
   } catch(Exception $e) { return false; }
 }

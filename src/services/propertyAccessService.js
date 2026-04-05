@@ -1,4 +1,4 @@
-const API_URL = "http://localhost/v4/api/php-api-crm/public/agent_property_access.php";
+const API_URL = "/api/agent_property_access.php";
 
 const getAccessiblePropertyIds = async (agentId) => {
   if (!agentId) return [];

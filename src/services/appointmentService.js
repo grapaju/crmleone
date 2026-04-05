@@ -1,4 +1,4 @@
-const API_URL = "http://localhost/v4/api/php-api-crm/public/appointments.php";
+const API_URL = "/api/appointments.php";
 import { leadService } from "./leadService";
 
 async function parseJsonSafe(response) {
@@ -228,8 +228,8 @@ const saveAppointment = async (appointment) => {
     payload.end_date = payload.end_date || payload.end;
     payload.data_fim = payload.data_fim || payload.end;
 
-    // --- Normalização explícita de datas para formato MySQL (YYYY-MM-DD HH:mm:ss) ---
-    const toMySqlDateTime = (value) => {
+    // --- Normalização explícita de datas para formato SQL (YYYY-MM-DD HH:mm:ss) ---
+    const toSqlDateTime = (value) => {
       if (!value) return value;
       if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(value)) return value;
       try {
@@ -241,8 +241,8 @@ const saveAppointment = async (appointment) => {
     };
     const originalStart = payload.start;
     const originalEnd = payload.end;
-    payload.start = toMySqlDateTime(payload.start);
-    if (payload.end) payload.end = toMySqlDateTime(payload.end);
+    payload.start = toSqlDateTime(payload.start);
+    if (payload.end) payload.end = toSqlDateTime(payload.end);
     if (!payload.end) payload.end = payload.start;
     // Sincroniza aliases após normalizar
     payload.start_date = payload.start;

@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost/v4/api/php-api-crm/public/towers.php';
+const API_URL = '/api/towers.php';
 
 function mapToApi(t) {
   // frontend shape: { id, name, floors, unitsPerFloor, project_id }

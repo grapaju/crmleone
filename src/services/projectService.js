@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost/v4/api/php-api-crm/public/projects.php';
+const API_URL = '/api/projects.php';
 
 async function parseJsonSafe(response) {
   const contentType = response.headers.get('content-type') || '';

@@ -1,4 +1,4 @@
-const API_URL = "http://localhost/v4/api/php-api-crm/public/properties.php";
+const API_URL = "/api/properties.php";
 
 const getProperties = async () => {
   const r = await fetch(API_URL);

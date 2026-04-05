@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../src/config/Database.php';
+require_once __DIR__ . '/../src/config/database.php';
 try {
     $db = getDatabaseConnection();
     $now = new DateTime('now');

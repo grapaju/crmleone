@@ -1,6 +1,6 @@
-const API_URL = 'http://localhost/v4/api/php-api-crm/public/property_images.php';
+const API_URL = '/api/property_images.php';
 // base para recursos públicos (uploads, etc.)
-export const API_BASE = 'http://localhost/v4/api/php-api-crm/public/';
+export const API_BASE = '/api/';
 
 const getImagesByProperty = async (id, type = 'property') => {
   // type: 'property' | 'project' | 'unit'

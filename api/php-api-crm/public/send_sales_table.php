@@ -12,7 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-require_once __DIR__ . '/../src/config/Database.php';
+require_once __DIR__ . '/../src/config/database.php';
 require_once __DIR__ . '/../src/models/SalesTable.php';
 require_once __DIR__ . '/../src/lib/send_sales_table_helper.php';
 

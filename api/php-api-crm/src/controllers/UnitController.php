@@ -57,8 +57,9 @@ class UnitController
             return ['error' => 'PDO indisponível'];
         }
         try {
-            $chk = $pdo->query("SHOW TABLES LIKE 'unit_cub_history'");
-            if (!$chk || !$chk->fetchColumn()) {
+            $chk = $pdo->prepare("SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'unit_cub_history'");
+            $chk->execute();
+            if (((int)$chk->fetchColumn()) === 0) {
                 return ['data' => []];
             }
             if ($unitId) {

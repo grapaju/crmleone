@@ -45,7 +45,7 @@ const DocumentCard = ({ document: doc, onDelete }) => {
     // Se já for uma URL completa, retorna direto
     if (/^https?:\/\//.test(doc.file_path)) return doc.file_path;
     // Gera URL correta para uploads
-    return `http://localhost:5173/api/php-api-crm/public/uploads/${doc.file_path.replace(/^.*[\\\/]/, '')}`;
+    return `/api/uploads/${doc.file_path.replace(/^.*[\\\/]/, '')}`;
   };
 
   const handleView = () => {

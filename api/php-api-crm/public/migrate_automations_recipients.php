@@ -1,6 +1,6 @@
 <?php
 // Run once to convert automations.recipients from comma names to JSON recipientsList when possible.
-require_once __DIR__ . '/../src/config/Database.php';
+require_once __DIR__ . '/../src/config/database.php';
 
 $db = getDatabaseConnection();
 try {

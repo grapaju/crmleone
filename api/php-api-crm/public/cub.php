@@ -22,17 +22,28 @@ function json_input() {
     return is_array($d) ? $d : [];
 }
 
+function normalize_cub_row($row) {
+    if (!is_array($row)) return $row;
+    $valor = $row['valorAtual'] ?? $row['valoratual'] ?? $row['valor_atual'] ?? null;
+    if (!array_key_exists('valorAtual', $row)) {
+        $row['valorAtual'] = $valor;
+    }
+    return $row;
+}
+
 try {
     if ($method === 'GET') {
         if (isset($_GET['latest'])) {
             $stmt = $pdo->query("SELECT * FROM cub ORDER BY vigencia DESC, id DESC LIMIT 1");
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
-            echo json_encode(['data'=>$row]);
+            echo json_encode(['data'=>normalize_cub_row($row)]);
             exit;
         }
         // list all (limit basic)
         $stmt = $pdo->query("SELECT * FROM cub ORDER BY vigencia DESC, id DESC LIMIT 120");
-        echo json_encode(['data'=>$stmt->fetchAll(PDO::FETCH_ASSOC)]);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $rows = array_map('normalize_cub_row', $rows);
+        echo json_encode(['data'=>$rows]);
         exit;
     } elseif ($method === 'POST') {
         $input = json_input();
@@ -51,7 +62,8 @@ try {
         // detectar colunas disponíveis
         $cols = [];
         try {
-            $d = $pdo->query("DESCRIBE cub");
+            $d = $pdo->prepare("SELECT column_name FROM information_schema.columns WHERE table_name = 'cub'");
+            $d->execute();
             $all = $d->fetchAll(PDO::FETCH_COLUMN);
             if (is_array($all)) $cols = array_flip($all);
         } catch (Throwable $ex) {

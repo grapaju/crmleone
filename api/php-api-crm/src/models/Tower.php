@@ -21,7 +21,7 @@ class Tower
         ];
 
         try {
-            $stmt = $this->pdo->prepare("SELECT TABLE_NAME FROM information_schema.tables WHERE table_schema = DATABASE() AND TABLE_NAME IN ('torres','towers')");
+            $stmt = $this->pdo->prepare("SELECT table_name FROM information_schema.tables WHERE table_name IN ('torres','towers')");
             $stmt->execute();
             $rows = $stmt->fetchAll(PDO::FETCH_COLUMN);
             if (in_array('torres', $rows)) {
@@ -63,8 +63,9 @@ class Tower
         // detect if columns exist physically
         $columns = [];
         try {
-            $desc = $this->pdo->query("DESCRIBE `{$this->table}`")->fetchAll(PDO::FETCH_COLUMN);
-            $columns = is_array($desc) ? array_flip($desc) : [];
+            $desc = $this->pdo->prepare("SELECT column_name FROM information_schema.columns WHERE table_name = ?");
+            $desc->execute([$this->table]);
+            $columns = array_flip($desc->fetchAll(PDO::FETCH_COLUMN));
         } catch (Throwable $e) {
             $columns = [];
         }
@@ -105,7 +106,7 @@ class Tower
 
         $placeholders = implode(', ', array_fill(0, count($insertCols), '?'));
         $colList = implode(', ', $insertCols);
-        $stmt = $this->pdo->prepare("INSERT INTO `{$this->table}` ($colList) VALUES ($placeholders)");
+        $stmt = $this->pdo->prepare("INSERT INTO {$this->table} ($colList) VALUES ($placeholders)");
         $stmt->execute($values);
         return $this->pdo->lastInsertId();
     }
@@ -113,20 +114,20 @@ class Tower
     public function getByProject($projectId)
     {
         $projectCol = $this->col('project');
-        $stmt = $this->pdo->prepare("SELECT * FROM `{$this->table}` WHERE {$projectCol} = ?");
+        $stmt = $this->pdo->prepare("SELECT * FROM {$this->table} WHERE {$projectCol} = ?");
         $stmt->execute([$projectId]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     public function getAll()
     {
-        $stmt = $this->pdo->query("SELECT * FROM `{$this->table}`");
+        $stmt = $this->pdo->query("SELECT * FROM {$this->table}");
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     public function getById($id)
     {
-        $stmt = $this->pdo->prepare("SELECT * FROM `{$this->table}` WHERE id = ?");
+        $stmt = $this->pdo->prepare("SELECT * FROM {$this->table} WHERE id = ?");
         $stmt->execute([$id]);
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
@@ -141,8 +142,9 @@ class Tower
 
         $columns = [];
         try {
-            $desc = $this->pdo->query("DESCRIBE `{$this->table}`")->fetchAll(PDO::FETCH_COLUMN);
-            $columns = is_array($desc) ? array_flip($desc) : [];
+            $desc = $this->pdo->prepare("SELECT column_name FROM information_schema.columns WHERE table_name = ?");
+            $desc->execute([$this->table]);
+            $columns = array_flip($desc->fetchAll(PDO::FETCH_COLUMN));
         } catch (Throwable $e) {
             $columns = [];
         }
@@ -168,14 +170,14 @@ class Tower
         if (isset($columns['has_penthouse'])) { $sets[] = "has_penthouse = ?"; $values[] = isset($data['has_penthouse']) ? (int)!!$data['has_penthouse'] : (isset($data['hasPenthouse']) ? (int)!!$data['hasPenthouse'] : 0); }
         if (isset($columns['has_mezzanine'])) { $sets[] = "has_mezzanine = ?"; $values[] = isset($data['has_mezzanine']) ? (int)!!$data['has_mezzanine'] : (isset($data['hasMezzanine']) ? (int)!!$data['hasMezzanine'] : 0); }
         $values[] = $id;
-        $sql = "UPDATE `{$this->table}` SET " . implode(', ', $sets) . " WHERE id = ?";
+        $sql = "UPDATE {$this->table} SET " . implode(', ', $sets) . " WHERE id = ?";
         $stmt = $this->pdo->prepare($sql);
         return $stmt->execute($values);
     }
 
     public function delete($id)
     {
-        $stmt = $this->pdo->prepare("DELETE FROM `{$this->table}` WHERE id = ?");
+        $stmt = $this->pdo->prepare("DELETE FROM {$this->table} WHERE id = ?");
         return $stmt->execute([$id]);
     }
 }
