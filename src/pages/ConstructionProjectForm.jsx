@@ -221,21 +221,21 @@ const ConstructionProjectForm = () => {
       return;
     }
 
-    // convert projectFeatures to array of numeric IDs only
+    // Converte projectFeatures para payload misto (id quando existir, nome como fallback).
+    // O backend aceita ambos e resolve por ID ou por nome.
     const allOptions = Object.values(propertyOptions).flat();
-    const featureIds = [];
-    const unresolved = [];
+    const featurePayload = [];
     (formData.projectFeatures || []).forEach((f) => {
       if (f == null) return;
       // numeric or numeric-string
       if (typeof f === "number" || /^[0-9]+$/.test(String(f))) {
-        featureIds.push(Number(f));
+        featurePayload.push(Number(f));
         return;
       }
       // object with id
       if (typeof f === "object") {
         if (f.id) {
-          featureIds.push(Number(f.id));
+          featurePayload.push(Number(f.id));
           return;
         }
         // try name property
@@ -244,7 +244,7 @@ const ConstructionProjectForm = () => {
       }
       // try featureIdMap provided by the form (populated by ProjectFormBasic)
       if (formData.featureIdMap && formData.featureIdMap[f]) {
-        featureIds.push(Number(formData.featureIdMap[f]));
+        featurePayload.push(Number(formData.featureIdMap[f]));
         return;
       }
       // fallback: try local propertyOptions
@@ -252,21 +252,16 @@ const ConstructionProjectForm = () => {
         (o) => o.nome === f || o.name === f || String(o.id) === String(f)
       );
       if (found) {
-        featureIds.push(Number(found.id));
+        featurePayload.push(Number(found.id));
       } else {
-        unresolved.push(String(f));
+        // mantém nome para o backend tentar resolver por nome
+        featurePayload.push(String(f));
       }
     });
 
-    if (unresolved.length > 0) {
-      toast({
-        title: "⚠️ Alguns itens não foram mapeados",
-        description: `As seguintes características não foram convertidas para IDs e serão ignoradas: ${unresolved.join(
-          ", "
-        )}`,
-        variant: "destructive",
-      });
-    }
+    const uniqueFeaturePayload = Array.from(
+      new Set(featurePayload.filter((x) => x !== null && x !== undefined && String(x).trim() !== ""))
+    );
 
     const payload = {
       id: formData.id || undefined,
@@ -279,7 +274,7 @@ const ConstructionProjectForm = () => {
       city: formData.cidade,
       zip_code: formData.cep,
       delivery_date: formData.deliveryDate,
-      features: featureIds,
+      features: uniqueFeaturePayload,
       property_type: formData.propertyType || "project",
     };
 

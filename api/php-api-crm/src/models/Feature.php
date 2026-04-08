@@ -4,6 +4,7 @@ class Feature
     private $pdo;
     private $tableName;
     private $nameColumn;
+    private $categoryColumn;
 
     public function __construct($db)
     {
@@ -16,32 +17,36 @@ class Feature
             if (in_array('features', $rows)) {
                 $this->tableName = 'features';
                 $this->nameColumn = 'name';
+                $this->categoryColumn = 'category';
             } elseif (in_array('caracteristicas', $rows)) {
                 $this->tableName = 'caracteristicas';
                 // column in portuguese schema is 'nome'
                 $this->nameColumn = 'nome';
+                $this->categoryColumn = 'categoria';
             } else {
                 // default to features
                 $this->tableName = 'features';
                 $this->nameColumn = 'name';
+                $this->categoryColumn = 'category';
             }
         } catch (PDOException $e) {
             // fallback defaults
             $this->tableName = 'features';
             $this->nameColumn = 'name';
+            $this->categoryColumn = 'category';
         }
     }
 
     public function getAll()
     {
-    $sql = "SELECT id, " . $this->nameColumn . " AS name FROM " . $this->tableName . " ORDER BY id";
+    $sql = "SELECT id, " . $this->nameColumn . " AS name, " . $this->categoryColumn . " AS category FROM " . $this->tableName . " ORDER BY id";
     $stmt = $this->pdo->query($sql);
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     public function getById($id)
     {
-    $sql = "SELECT id, " . $this->nameColumn . " AS name FROM " . $this->tableName . " WHERE id = ?";
+    $sql = "SELECT id, " . $this->nameColumn . " AS name, " . $this->categoryColumn . " AS category FROM " . $this->tableName . " WHERE id = ?";
     $stmt = $this->pdo->prepare($sql);
     $stmt->execute([$id]);
     return $stmt->fetch(PDO::FETCH_ASSOC);

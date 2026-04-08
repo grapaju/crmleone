@@ -36,8 +36,9 @@ const ProjectFormBasic = ({ formData, onInputChange }) => {
           return ['empreendimento', 'empreendimento_infraestruturas', 'obra', 'empreendimento_infraestrutura'].some(sub => catStr.includes(sub));
         });
 
-  // se encontramos items com categoria, use-os; senão use vazio para cair no fallback local
-  setFeatures(matchesCategory.length > 0 ? matchesCategory : []);
+        // Se há categoria, filtra; se API não trouxe categoria, usa lista completa da API
+        // para manter IDs reais do banco e evitar perda ao salvar.
+        setFeatures(matchesCategory.length > 0 ? matchesCategory : normalized);
       } catch (e) {
         // fallback para opções locais se a API falhar
         setFeatures([]);
