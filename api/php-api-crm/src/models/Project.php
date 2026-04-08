@@ -71,7 +71,7 @@ class Project
     private function syncProjectFeatures($projectId, $features)
     {
         // Accept array of ids or array of objects with id
-        $logFile = __DIR__ . '/../../logs/projects.log';
+        $logFile = __DIR__ . '/../../api/logs/projects.log';
         $timestamp = date('Y-m-d H:i:s');
         @file_put_contents($logFile, "$timestamp | syncProjectFeatures called for project $projectId with payload: " . var_export($features, true) . "\n", FILE_APPEND | LOCK_EX);
         if (!is_array($features)) {
@@ -314,11 +314,11 @@ class Project
     {
         // Remove nested collections that belong to other endpoints (towers, units)
         if (isset($data['towers'])) {
-            @file_put_contents(__DIR__ . '/../../logs/projects.log', date('Y-m-d H:i:s') . " | create payload contained 'towers' - removed before insert\n", FILE_APPEND | LOCK_EX);
+            @file_put_contents(__DIR__ . '/../../api/logs/projects.log', date('Y-m-d H:i:s') . " | create payload contained 'towers' - removed before insert\n", FILE_APPEND | LOCK_EX);
             unset($data['towers']);
         }
         if (isset($data['units'])) {
-            @file_put_contents(__DIR__ . '/../../logs/projects.log', date('Y-m-d H:i:s') . " | create payload contained 'units' - removed before insert\n", FILE_APPEND | LOCK_EX);
+            @file_put_contents(__DIR__ . '/../../api/logs/projects.log', date('Y-m-d H:i:s') . " | create payload contained 'units' - removed before insert\n", FILE_APPEND | LOCK_EX);
             unset($data['units']);
         }
         // Mapear diferentes chaves vindas do frontend para os nomes das colunas
@@ -360,7 +360,7 @@ class Project
     public function update($id, $data)
     {
         // Build dynamic update: only update fields present in payload and existing in DB
-    $logFile = __DIR__ . '/../../logs/projects.log';
+    $logFile = __DIR__ . '/../../api/logs/projects.log';
     $timestamp = date('Y-m-d H:i:s');
         // Remove nested collections that belong to other endpoints
         if (isset($data['towers'])) {

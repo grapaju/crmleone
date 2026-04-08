@@ -17,6 +17,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 require_once '../src/config/database.php';
+// Logs devem ir para api/logs (symlink para .deploy/shared/logs no deploy)
+$logDir = __DIR__ . '/logs';
+if (!is_dir($logDir)) { @mkdir($logDir, 0755, true); }
+$logFile = $logDir . '/projects.log';
 // Try to invalidate opcache for development so changes are picked up immediately
 $projectModelPath = realpath(__DIR__ . '/../src/models/Project.php');
 if ($projectModelPath && function_exists('opcache_invalidate')) {
@@ -29,9 +33,6 @@ $method = $_SERVER['REQUEST_METHOD'];
 $rawBody = file_get_contents("php://input");
 $input = json_decode($rawBody, true);
 // Log raw body for debugging PUT behavior (temporary)
-$logDir = __DIR__ . '/../logs';
-if (!is_dir($logDir)) { @mkdir($logDir, 0755, true); }
-$logFile = $logDir . '/projects.log';
 @file_put_contents($logFile, date('Y-m-d H:i:s') . " | raw body: " . $rawBody . "\n", FILE_APPEND | LOCK_EX);
 // Fallback: if json_decode failed but $_REQUEST has data (some clients), use it
 if ($input === null) {
@@ -110,9 +111,6 @@ try {
                 }
             }
             // Debug: gravar payload filtrado antes do update
-            $logDir = __DIR__ . '/../logs';
-            if (!is_dir($logDir)) { @mkdir($logDir, 0755, true); }
-            $logFile = $logDir . '/projects.log';
             @file_put_contents($logFile, date('Y-m-d H:i:s') . " | PUT filtered payload: " . json_encode($filtered) . "\n", FILE_APPEND | LOCK_EX);
 
             $res = $controller->update($_GET['id'], $filtered);
@@ -146,7 +144,7 @@ try {
     http_response_code(500);
 
     // Garantir que o diretório de logs exista e escrever a exceção com timestamp
-    $logDir = __DIR__ . '/../logs';
+    $logDir = __DIR__ . '/logs';
     if (!is_dir($logDir)) {
         @mkdir($logDir, 0755, true);
     }

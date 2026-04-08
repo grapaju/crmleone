@@ -221,33 +221,32 @@ const ConstructionProjectForm = () => {
       return;
     }
 
-    // Converte projectFeatures para payload misto (id quando existir, nome como fallback).
-    // O backend aceita ambos e resolve por ID ou por nome.
+    // Envia características majoritariamente por nome para evitar IDs locais/fallback
+    // que podem não existir no banco em produção.
     const featurePayload = [];
     (formData.projectFeatures || []).forEach((f) => {
       if (f == null) return;
-      // numeric or numeric-string
+
+      // object payload
+      if (typeof f === "object") {
+        const nameFromObj = f.name ?? f.nome ?? null;
+        if (nameFromObj) {
+          featurePayload.push(String(nameFromObj));
+          return;
+        }
+        if (f.id && (typeof f.id === "number" || /^[0-9]+$/.test(String(f.id)))) {
+          featurePayload.push(Number(f.id));
+        }
+        return;
+      }
+
+      // numeric or numeric-string (compatibilidade com dados legados)
       if (typeof f === "number" || /^[0-9]+$/.test(String(f))) {
         featurePayload.push(Number(f));
         return;
       }
-      // object with id
-      if (typeof f === "object") {
-        if (f.id) {
-          featurePayload.push(Number(f.id));
-          return;
-        }
-        // try name property
-        const nameFromObj = f.name ?? f.nome ?? null;
-        if (nameFromObj) f = nameFromObj;
-      }
-      // try featureIdMap provided by the form (populated by ProjectFormBasic)
-      if (formData.featureIdMap && formData.featureIdMap[f]) {
-        featurePayload.push(Number(formData.featureIdMap[f]));
-        return;
-      }
+
       // Sem ID real mapeado, envia o nome para o backend resolver por nome.
-      // Nao usar IDs locais de fallback, pois podem nao existir no banco.
       featurePayload.push(String(f));
     });
 
