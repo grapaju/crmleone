@@ -12,6 +12,14 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+CREATE OR REPLACE FUNCTION trg_set_atualizado_em()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.atualizado_em = CURRENT_TIMESTAMP;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 -- ---------- Core tables ----------
 CREATE TABLE IF NOT EXISTS agents (
   id BIGSERIAL PRIMARY KEY,
@@ -534,7 +542,7 @@ FOR EACH ROW EXECUTE FUNCTION trg_set_updated_at();
 
 DROP TRIGGER IF EXISTS trg_cub_updated_at ON cub;
 CREATE TRIGGER trg_cub_updated_at BEFORE UPDATE ON cub
-FOR EACH ROW EXECUTE FUNCTION trg_set_updated_at();
+FOR EACH ROW EXECUTE FUNCTION trg_set_atualizado_em();
 
 -- ---------- Appointment to lead_activities triggers ----------
 CREATE OR REPLACE FUNCTION trg_appointments_insert_to_lead_activities()
