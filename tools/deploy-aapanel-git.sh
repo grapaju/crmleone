@@ -17,6 +17,7 @@ WEB_USER="${WEB_USER:-www}"
 WEB_GROUP="${WEB_GROUP:-www}"
 RUN_NPM_INSTALL="${RUN_NPM_INSTALL:-1}"
 RUN_COMPOSER_INSTALL="${RUN_COMPOSER_INSTALL:-1}"
+VITE_EMPTY_OUT_DIR="${VITE_EMPTY_OUT_DIR:-false}"
 
 echo "==> Repo root: ${REPO_ROOT}"
 echo "==> Publish root: ${PUBLISH_ROOT}"
@@ -37,7 +38,20 @@ if [[ "${RUN_NPM_INSTALL}" == "1" ]]; then
 fi
 
 echo "==> Gerando build do frontend"
-npm run build -- --outDir .deploy/live --emptyOutDir
+
+# Em ambientes aaPanel pode existir .user.ini protegido em .deploy/live.
+# Com --emptyOutDir=true o Vite tenta limpar o diretorio e pode falhar com ENOTDIR.
+if [[ "${VITE_EMPTY_OUT_DIR}" == "true" && -f "${PUBLISH_ROOT}/.user.ini" ]]; then
+  echo "==> Aviso: .user.ini detectado em ${PUBLISH_ROOT}; forçando --emptyOutDir=false"
+  VITE_EMPTY_OUT_DIR="false"
+fi
+
+# Mantem a pasta de publicacao limpa sem apagar arquivos protegidos do aaPanel.
+mkdir -p "${PUBLISH_ROOT}"
+rm -f "${PUBLISH_ROOT}/index.html"
+rm -rf "${PUBLISH_ROOT}/assets"
+
+npm run build -- --outDir .deploy/live --emptyOutDir "${VITE_EMPTY_OUT_DIR}"
 
 if [[ "${RUN_COMPOSER_INSTALL}" == "1" ]]; then
   echo "==> Instalando dependencias PHP"

@@ -39,18 +39,18 @@ No terminal do servidor:
 
 1. Clonar repositorio
 
-  cd /www/wwwroot
-  git clone https://github.com/grapaju/crmleone.git crmleone
+cd /www/wwwroot
+git clone https://github.com/grapaju/crmleone.git crmleone
 
 2. Entrar no projeto e permitir scripts
 
-  cd /www/wwwroot/crmleone
-  chmod +x tools/deploy-aapanel-git.sh
-  chmod +x tools/aapanel-hook-deploy.sh
+cd /www/wwwroot/crmleone
+chmod +x tools/deploy-aapanel-git.sh
+chmod +x tools/aapanel-hook-deploy.sh
 
 3. Rodar deploy completo
 
-  bash tools/deploy-aapanel-git.sh
+bash tools/deploy-aapanel-git.sh
 
 Observacao importante:
 
@@ -79,31 +79,31 @@ No aaPanel, em Website:
 
 No arquivo de configuracao do site, use o bloco abaixo e ajuste apenas o fastcgi_pass conforme seu servidor:
 
-  root /www/wwwroot/crmleone/.deploy/live;
-  index index.php index.html;
+root /www/wwwroot/crmleone/.deploy/live;
+index index.php index.html;
 
-  location ^~ /api/uploads/ {
-     alias /www/wwwroot/crmleone/.deploy/shared/uploads/;
-     access_log off;
-     expires 7d;
-     try_files $uri =404;
-  }
+location ^~ /api/uploads/ {
+alias /www/wwwroot/crmleone/.deploy/shared/uploads/;
+access_log off;
+expires 7d;
+try_files $uri =404;
+}
 
-  location ~ ^/api/(.+\.php)$ {
-     include fastcgi_params;
-     fastcgi_param SCRIPT_FILENAME /www/wwwroot/crmleone/.deploy/live/api/$1;
-     fastcgi_param SCRIPT_NAME /api/$1;
-     fastcgi_pass unix:/tmp/php-cgi-83.sock;
-  }
+location ~ ^/api/(.+\.php)$ {
+include fastcgi_params;
+fastcgi_param SCRIPT_FILENAME /www/wwwroot/crmleone/.deploy/live/api/$1;
+fastcgi_param SCRIPT_NAME /api/$1;
+fastcgi_pass unix:/tmp/php-cgi-83.sock;
+}
 
-  location / {
-     try_files $uri $uri/ /index.html;
-  }
+location / {
+try_files $uri $uri/ /index.html;
+}
 
 Ordem das regras e obrigatoria:
 
 1. /api/uploads/ primeiro.
-2. /api/*.php depois.
+2. /api/\*.php depois.
 3. Fallback da SPA por ultimo.
 
 Sem essa ordem, login e endpoints da API vao quebrar.
@@ -112,8 +112,8 @@ Sem essa ordem, login e endpoints da API vao quebrar.
 
 Crie banco e importe schema:
 
-  sudo -u postgres psql -c "CREATE DATABASE crm_imoveis;"
-  sudo -u postgres psql -d crm_imoveis -f /www/wwwroot/crmleone/database/schema.postgresql.sql
+sudo -u postgres psql -c "CREATE DATABASE crm_imoveis;"
+sudo -u postgres psql -d crm_imoveis -f /www/wwwroot/crmleone/database/schema.postgresql.sql
 
 ## 7. Variaveis de ambiente da API
 
@@ -140,10 +140,10 @@ Arquivo de conexao:
 
 Garanta escrita:
 
-  mkdir -p /www/wwwroot/crmleone/.deploy/shared/uploads
-  mkdir -p /www/wwwroot/crmleone/.deploy/shared/logs
-  chown -R www:www /www/wwwroot/crmleone/.deploy/shared/uploads /www/wwwroot/crmleone/.deploy/shared/logs
-  chmod -R 775 /www/wwwroot/crmleone/.deploy/shared/uploads /www/wwwroot/crmleone/.deploy/shared/logs
+mkdir -p /www/wwwroot/crmleone/.deploy/shared/uploads
+mkdir -p /www/wwwroot/crmleone/.deploy/shared/logs
+chown -R www:www /www/wwwroot/crmleone/.deploy/shared/uploads /www/wwwroot/crmleone/.deploy/shared/logs
+chmod -R 775 /www/wwwroot/crmleone/.deploy/shared/uploads /www/wwwroot/crmleone/.deploy/shared/logs
 
 ## 9. Primeiro acesso
 
@@ -158,8 +158,8 @@ Opcional para criar admin inicial:
 
 Para atualizar sem quebrar deploy:
 
-  cd /www/wwwroot/crmleone
-  bash tools/deploy-aapanel-git.sh
+cd /www/wwwroot/crmleone
+bash tools/deploy-aapanel-git.sh
 
 Esse comando atualiza codigo, rebuilda e republica.
 
@@ -167,7 +167,7 @@ Esse comando atualiza codigo, rebuilda e republica.
 
 Se usar automacoes por e-mail, adicione cron:
 
-  */5 * * * * /usr/bin/php /www/wwwroot/crmleone/.deploy/live/api/run_automations.php >> /www/wwwroot/crmleone/.deploy/shared/logs/cron_automations.log 2>&1
+_/5 _ \* \* \* /usr/bin/php /www/wwwroot/crmleone/.deploy/live/api/run_automations.php >> /www/wwwroot/crmleone/.deploy/shared/logs/cron_automations.log 2>&1
 
 ## 12. Validacao rapida pos-deploy
 
@@ -202,6 +202,7 @@ Comandos de diagnostico:
 2. git pull bloqueado: ha mudancas locais no checkout; use somente o script de deploy oficial.
 3. API retorna HTML da SPA: ordem das regras Nginx incorreta.
 4. Upload falha: permissao de escrita em .deploy/shared/uploads.
+5. Build falha com ENOTDIR em .deploy/live/.user.ini: arquivo protegido do aaPanel; use o script atualizado (ja evita limpeza destrutiva) ou rode com VITE_EMPTY_OUT_DIR=false.
 
 ## 15. Fluxo curto para operar no dia a dia
 
