@@ -140,7 +140,7 @@ try {
             echo json_encode(["error" => "Método não permitido"]);
             break;
     }
-} catch (Exception $ex) {
+} catch (Throwable $ex) {
     http_response_code(500);
 
     // Garantir que o diretório de logs exista e escrever a exceção com timestamp

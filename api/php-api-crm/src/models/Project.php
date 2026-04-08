@@ -42,6 +42,15 @@ class Project
         return isset($this->columnCache[$column]);
     }
 
+    private function lowerText($value)
+    {
+        $text = (string)$value;
+        if (function_exists('mb_strtolower')) {
+            return mb_strtolower($text, 'UTF-8');
+        }
+        return strtolower($text);
+    }
+
     private function tableExists($table)
     {
         // Use information_schema to reliably check table existence with prepared statements
@@ -200,7 +209,7 @@ class Project
                     $placeholders = implode(', ', array_fill(0, count($names), '?'));
                     $lowerCols = "LOWER(" . $this->featuresNameCol . ")";
                     $sql = "SELECT id, LOWER(" . $this->featuresNameCol . ") as lname FROM " . $this->featuresTable . " WHERE $lowerCols IN ($placeholders)";
-                    $lowerNames = array_map(function($n){ return mb_strtolower($n, 'UTF-8'); }, $names);
+                    $lowerNames = array_map(function($n){ return $this->lowerText($n); }, $names);
                     $checkStmt = $this->pdo->prepare($sql);
                     $checkStmt->execute($lowerNames);
                     $rowsFound = $checkStmt->fetchAll(PDO::FETCH_ASSOC);
@@ -209,7 +218,7 @@ class Project
                         $nameToId[$r['lname']] = (int)$r['id'];
                     }
                     foreach ($names as $nm) {
-                        $ln = mb_strtolower($nm, 'UTF-8');
+                        $ln = $this->lowerText($nm);
                         if (isset($nameToId[$ln])) {
                             $existing[] = $nameToId[$ln];
                         } else {
@@ -230,7 +239,7 @@ class Project
                         }
 
                         // Recarrega IDs para os nomes que acabaram de ser criados.
-                        $missingLower = array_map(function($n){ return mb_strtolower($n, 'UTF-8'); }, $missing);
+                        $missingLower = array_map(function($n){ return $this->lowerText($n); }, $missing);
                         $placeholders2 = implode(', ', array_fill(0, count($missingLower), '?'));
                         $sql2 = "SELECT id, LOWER(name) as lname FROM features WHERE LOWER(name) IN ($placeholders2)";
                         $reloadStmt = $this->pdo->prepare($sql2);
@@ -243,7 +252,7 @@ class Project
 
                         $stillMissing = [];
                         foreach ($missing as $nm) {
-                            $ln = mb_strtolower($nm, 'UTF-8');
+                            $ln = $this->lowerText($nm);
                             if (isset($reloadedMap[$ln])) {
                                 $existing[] = $reloadedMap[$ln];
                             } else {
