@@ -5,6 +5,7 @@ import { ArrowLeft, Save, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { projectService } from "@/services/projectService";
+import { projectAccessService } from "@/services/projectAccessService";
 import { towerService } from "@/services/towerService";
 import { unitService } from "@/services/unitService";
 import { propertyOptions } from "@/data/propertyOptions";
@@ -13,11 +14,13 @@ import ProjectFormBasic from "@/components/properties/project-form/ProjectFormBa
 import ProjectFormTowers from "@/components/properties/project-form/ProjectFormTowers";
 import ProjectUnitsWizard from "@/components/properties/project-form/ProjectUnitsWizard";
 import ProjectFormImages from "@/components/properties/project-form/ProjectFormImages";
+import { useAuth } from "@/contexts/AuthContext";
 
 const ConstructionProjectForm = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const { toast } = useToast();
+  const { user } = useAuth();
   const isEditing = Boolean(id);
 
   const getInitialFormData = () => ({
@@ -326,6 +329,21 @@ const ConstructionProjectForm = () => {
       const saved = res && res.data ? res.data : res;
       if (saved && saved.id) {
         setFormData((prev) => ({ ...prev, id: saved.id }));
+
+        // Para usuários não-admin, garante que a obra recém-salva apareça na listagem
+        // adicionando permissão explícita no agent_project_access.
+        if (user?.id && user?.role !== "admin") {
+          try {
+            const currentIdsRaw = await projectAccessService.get(user.id);
+            const currentIds = Array.isArray(currentIdsRaw)
+              ? currentIdsRaw.map(Number).filter((x) => Number.isFinite(x))
+              : [];
+            const merged = Array.from(new Set([...currentIds, Number(saved.id)]));
+            await projectAccessService.set(user.id, merged, 1);
+          } catch (permErr) {
+            console.warn("Falha ao vincular permissão do projeto ao usuário:", permErr);
+          }
+        }
       }
       // Upload project images if any were selected in the images tab
       if (
