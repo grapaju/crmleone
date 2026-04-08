@@ -223,7 +223,6 @@ const ConstructionProjectForm = () => {
 
     // Converte projectFeatures para payload misto (id quando existir, nome como fallback).
     // O backend aceita ambos e resolve por ID ou por nome.
-    const allOptions = Object.values(propertyOptions).flat();
     const featurePayload = [];
     (formData.projectFeatures || []).forEach((f) => {
       if (f == null) return;
@@ -247,16 +246,9 @@ const ConstructionProjectForm = () => {
         featurePayload.push(Number(formData.featureIdMap[f]));
         return;
       }
-      // fallback: try local propertyOptions
-      const found = allOptions.find(
-        (o) => o.nome === f || o.name === f || String(o.id) === String(f)
-      );
-      if (found) {
-        featurePayload.push(Number(found.id));
-      } else {
-        // mantém nome para o backend tentar resolver por nome
-        featurePayload.push(String(f));
-      }
+      // Sem ID real mapeado, envia o nome para o backend resolver por nome.
+      // Nao usar IDs locais de fallback, pois podem nao existir no banco.
+      featurePayload.push(String(f));
     });
 
     const uniqueFeaturePayload = Array.from(

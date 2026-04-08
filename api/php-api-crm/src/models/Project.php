@@ -56,6 +56,18 @@ class Project
         }
     }
 
+    private function tableHasColumn($table, $column)
+    {
+        try {
+            $sql = "SELECT COUNT(*) FROM information_schema.columns WHERE table_name = ? AND column_name = ?";
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute([$table, $column]);
+            return ((int)$stmt->fetchColumn()) > 0;
+        } catch (PDOException $e) {
+            return false;
+        }
+    }
+
     private function syncProjectFeatures($projectId, $features)
     {
         // Accept array of ids or array of objects with id
@@ -164,6 +176,43 @@ class Project
                             $missing[] = $nm;
                         }
                     }
+
+                    // Se não encontrou por nome, tenta criar automaticamente em `features`
+                    // para manter a persistência mesmo quando vier de fallback do frontend.
+                    if (count($missing) > 0 && $this->featuresTable === 'features' && $this->tableHasColumn('features', 'category')) {
+                        $insFeature = $this->pdo->prepare("INSERT INTO features (name, category) VALUES (?, ?) ON CONFLICT (category, name) DO NOTHING");
+                        foreach ($missing as $nm) {
+                            try {
+                                $insFeature->execute([$nm, 'empreendimento_infraestruturas']);
+                            } catch (PDOException $innerCreate) {
+                                @file_put_contents($logFile, "$timestamp | warning: failed creating missing feature '$nm': " . $innerCreate->getMessage() . "\n", FILE_APPEND | LOCK_EX);
+                            }
+                        }
+
+                        // Recarrega IDs para os nomes que acabaram de ser criados.
+                        $missingLower = array_map(function($n){ return mb_strtolower($n, 'UTF-8'); }, $missing);
+                        $placeholders2 = implode(', ', array_fill(0, count($missingLower), '?'));
+                        $sql2 = "SELECT id, LOWER(name) as lname FROM features WHERE LOWER(name) IN ($placeholders2)";
+                        $reloadStmt = $this->pdo->prepare($sql2);
+                        $reloadStmt->execute($missingLower);
+                        $reloaded = $reloadStmt->fetchAll(PDO::FETCH_ASSOC);
+                        $reloadedMap = [];
+                        foreach ($reloaded as $r2) {
+                            $reloadedMap[$r2['lname']] = (int)$r2['id'];
+                        }
+
+                        $stillMissing = [];
+                        foreach ($missing as $nm) {
+                            $ln = mb_strtolower($nm, 'UTF-8');
+                            if (isset($reloadedMap[$ln])) {
+                                $existing[] = $reloadedMap[$ln];
+                            } else {
+                                $stillMissing[] = $nm;
+                            }
+                        }
+                        $missing = $stillMissing;
+                    }
+
                     if (count($missing) > 0) {
                         @file_put_contents($logFile, "$timestamp | warning: some feature names do not exist and will be skipped: " . var_export($missing, true) . "\n", FILE_APPEND | LOCK_EX);
                     }
