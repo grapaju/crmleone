@@ -172,17 +172,68 @@ const ProjectUnitsWizard = ({
   }, []);
 
   // helpers
-  const formatDecimal = (value) => {
-    if (value === "" || value == null) return "";
-    const num = Number(String(value).replace(/[^0-9.-]+/g, "").replace(/,/g, "."));
-    if (isNaN(num)) return "";
-    return num.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  };
   const parseDecimal = (masked) => {
     if (!masked && masked !== 0) return 0;
-    const cleaned = String(masked).replace(/\./g, "").replace(/,/g, ".").replace(/[^0-9.-]+/g, "");
-    const n = Number(cleaned);
+    let s = String(masked).trim();
+    if (!s) return 0;
+
+    s = s.replace(/\s+/g, '').replace(/[^0-9,.-]+/g, '');
+    const hasComma = s.includes(',');
+    const hasDot = s.includes('.');
+
+    if (hasComma && hasDot) {
+      if (s.lastIndexOf(',') > s.lastIndexOf('.')) {
+        s = s.replace(/\./g, '').replace(',', '.');
+      } else {
+        s = s.replace(/,/g, '');
+      }
+    } else if (hasComma) {
+      s = s.replace(/\./g, '').replace(',', '.');
+    } else if (hasDot) {
+      const parts = s.split('.');
+      if (parts.length > 2) {
+        const dec = parts.pop();
+        s = parts.join('') + '.' + dec;
+      } else {
+        const [intPart, decPart] = parts;
+        if (decPart != null && decPart.length === 3) {
+          s = intPart + decPart;
+        } else {
+          s = intPart + (decPart != null ? `.${decPart}` : '');
+        }
+      }
+    }
+
+    const n = Number(s);
     return isNaN(n) ? 0 : n;
+  };
+  const formatDecimal = (value) => {
+    if (value === "" || value == null) return "";
+    const num = parseDecimal(value);
+    if (!Number.isFinite(num) || Number.isNaN(num)) return "";
+    return num.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+  const parseAreaDecimal = (value) => {
+    if (!value && value !== 0) return 0;
+    const raw = String(value).trim();
+    if (!raw) return 0;
+
+    if (/[,.]/.test(raw)) {
+      return parseDecimal(raw);
+    }
+
+    const digits = raw.replace(/[^0-9-]/g, '');
+    if (!digits) return 0;
+    const n = Number(digits);
+    if (!Number.isFinite(n) || Number.isNaN(n)) return 0;
+    if (digits.length >= 4) return Number((n / 100).toFixed(2));
+    return n;
+  };
+  const formatAreaDecimal = (value) => {
+    if (value === "" || value == null) return "";
+    const parsed = parseAreaDecimal(value);
+    if (!Number.isFinite(parsed) || Number.isNaN(parsed)) return "";
+    return parsed.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
   // máscara monetária pt-BR leve: só dígitos e vírgula, uma vírgula, 2 casas decimais
@@ -324,15 +375,8 @@ const ProjectUnitsWizard = ({
   const cub = parseDecimal(general.cubValue || 0);
   const vuv = parseDecimal(coeffConfig.vuv || 0); // R$/m² para modo coeficientes
     // Persistir CUB (valor/vigência) se informado
-    let savedCubId = null;
-    if (cub > 0 && general.cubDate) {
-      try {
-        const res = await cubService.save({ valorAtual: cub, vigencia: general.cubDate, variacao: null });
-        savedCubId = res?.data?.id ?? res?.id ?? null;
-      } catch (e) {
-        toast({ title: "CUB não salvo", description: e.message || 'Falha ao salvar CUB; seguirei usando o valor informado nesta geração.', variant: 'default' });
-      }
-    }
+    const selectedCubNum = Number(selectedCubId);
+    const savedCubId = Number.isFinite(selectedCubNum) && selectedCubNum > 0 ? selectedCubNum : null;
     const generated = [];
     const seen = new Set(); // evitar duplicatas dentro da mesma execução
 
@@ -431,7 +475,7 @@ const ProjectUnitsWizard = ({
           });
           if (duplicateExisting || seen.has(key)) continue;
 
-          const area = parseDecimal(tip.area || 0);
+          const area = parseAreaDecimal(tip.area || 0);
           // cálculo base por modo
           let ff = 1;
           let basePrice = 0;
@@ -630,7 +674,7 @@ const ProjectUnitsWizard = ({
     const [local, setLocal] = useState(() => ({
       name: t.name || '',
       unit_type_id: t.unit_type_id ? String(t.unit_type_id) : 'none',
-      area: t.area ?? '',
+      area: formatAreaDecimal(t.area),
       bedrooms: String(t.bedrooms ?? ''),
       suites: String(t.suites ?? ''),
       parking: String(t.parking ?? ''),
@@ -646,7 +690,7 @@ const ProjectUnitsWizard = ({
       setLocal({
         name: t.name || '',
         unit_type_id: t.unit_type_id ? String(t.unit_type_id) : 'none',
-        area: t.area ?? '',
+        area: formatAreaDecimal(t.area),
         bedrooms: String(t.bedrooms ?? ''),
         suites: String(t.suites ?? ''),
         parking: String(t.parking ?? ''),
@@ -703,7 +747,11 @@ const ProjectUnitsWizard = ({
             <Input
               value={local.area}
               onChange={(e) => setLocal((p) => ({ ...p, area: maskDecimal2(e.target.value) }))}
-              onBlur={(e) => updateTypology(t.id, 'area', formatDecimal(e.target.value))}
+              onBlur={(e) => {
+                const v = formatAreaDecimal(e.target.value);
+                setLocal((p) => ({ ...p, area: v }));
+                updateTypology(t.id, 'area', v);
+              }}
               placeholder="70,00"
             />
           </div>
@@ -845,27 +893,39 @@ const ProjectUnitsWizard = ({
               try{
                 // Salvar/atualizar tipologias como unit_types
                 const saved = [];
+                const savedByLocalId = {};
                 for (const tp of typologies){
+                  const parsedArea = parseAreaDecimal(tp.area);
                   const payload = {
                     id: tp.unit_type_id && String(tp.unit_type_id).match(/^\d+$/) ? Number(tp.unit_type_id) : undefined,
                     name: tp.name || null,
                     position: tp.position || (tp.name || null),
                     bedrooms: tp.bedrooms ?? '',
                     parking_spots: tp.parking ?? 0,
-                    area: (typeof tp.area === 'string' ? Number(String(tp.area).replace(/\./g,'').replace(/,/g,'.')) : Number(tp.area||0)) || null,
-                    valuation_factor: tp.appreciation_factor != null && tp.appreciation_factor !== '' ? Number(String(tp.appreciation_factor).replace(',','.')) : null,
+                    area: parsedArea > 0 ? parsedArea : null,
+                    valuation_factor: tp.appreciation_factor != null && tp.appreciation_factor !== '' ? parseDecimal(tp.appreciation_factor) : null,
                     base_price: null
                   };
                   const res = await unitTypeService.save(payload);
                   const data = res?.data || res;
-                  if (data?.data) saved.push(data.data); else saved.push(data);
+                  const savedRow = data?.data || data;
+                  if (savedRow) {
+                    saved.push(savedRow);
+                    if (savedRow.id != null) {
+                      savedByLocalId[String(tp.id)] = String(savedRow.id);
+                    }
+                  }
                 }
                 // Recarregar lista de tipos e vincular IDs às tipologias
                 const listRes = await unitTypeService.list();
                 const list = listRes?.data || listRes || [];
                 setUnitTypes(list);
                 setTypologies(prev => prev.map(tp => {
-                  const match = list.find(ut => String(ut.name||ut.position||'').trim() === String(tp.name||'').trim() && Number(ut.area||0) === (typeof tp.area==='string'? Number(String(tp.area).replace(/\./g,'').replace(/,/g,'.')): Number(tp.area||0)));
+                  if (savedByLocalId[String(tp.id)]) {
+                    return { ...tp, unit_type_id: Number(savedByLocalId[String(tp.id)]) };
+                  }
+                  const areaParsed = parseAreaDecimal(tp.area);
+                  const match = list.find(ut => String(ut.name||ut.position||'').trim() === String(tp.name||'').trim() && Number(ut.area||0) === areaParsed);
                   return match ? { ...tp, unit_type_id: match.id } : tp;
                 }));
                 toast({ title:'Tipologias salvas', description:`${saved.length} registro(s) em unit_types.`});

@@ -28,18 +28,28 @@ try {
   }
   elseif($method==='POST'){
     $in=json_input();
-    $name = $in['name'] ?? null;
-    $pos = $in['position'] ?? null;
+    $name = isset($in['name']) ? trim((string)$in['name']) : null;
+    $pos = isset($in['position']) ? trim((string)$in['position']) : null;
     $parking = isset($in['parking_spots']) ? (int)$in['parking_spots'] : 0;
     $bedrooms = $in['bedrooms'] ?? '';
     $area = isset($in['area']) ? (float)$in['area'] : null;
     $base_price = isset($in['base_price']) ? (float)$in['base_price'] : null;
     $valuation = isset($in['valuation_factor']) ? (float)$in['valuation_factor'] : null;
-    if((!$pos && !$name) || !$area){ http_response_code(400); echo json_encode(['error'=>'name/position e area são obrigatórios']); exit; }
+    if(!$pos && $name){ $pos = $name; }
+    if(($pos === null || $pos === '') || $area === null || $area <= 0){
+      http_response_code(400);
+      echo json_encode(['error'=>'name/position e area sao obrigatorios']);
+      exit;
+    }
+
     $ins=$pdo->prepare('INSERT INTO unit_types (name, position, parking_spots, bedrooms, area, valuation_factor, base_price) VALUES (?,?,?,?,?,?,?)');
     $ins->execute([$name,$pos,$parking,$bedrooms,$area,$valuation,$base_price]);
-    $id=$pdo->lastInsertId();
-    echo json_encode(['data'=>['id'=>$id,'name'=>$name,'position'=>$pos,'parking_spots'=>$parking,'bedrooms'=>$bedrooms,'area'=>$area,'valuation_factor'=>$valuation,'base_price'=>$base_price]]);
+    $id=(int)$pdo->lastInsertId();
+
+    $st=$pdo->prepare('SELECT * FROM unit_types WHERE id=?');
+    $st->execute([$id]);
+    $row=$st->fetch(PDO::FETCH_ASSOC);
+    echo json_encode(['data'=>$row ?: ['id'=>$id]]);
     exit;
   }
   elseif($method==='PUT'){
@@ -68,4 +78,11 @@ try {
   else {
     http_response_code(405); echo json_encode(['error'=>'Method not allowed']);
   }
+} catch(PDOException $e){
+  if(in_array($e->getCode(), ['23505','23000'], true)){
+    http_response_code(409);
+    echo json_encode(['error'=>'Conflito de dados ao salvar tipologia. Verifique posicao/nome/area.']);
+    exit;
+  }
+  http_response_code(500); echo json_encode(['error'=>$e->getMessage()]);
 } catch(Throwable $e){ http_response_code(500); echo json_encode(['error'=>$e->getMessage()]); }

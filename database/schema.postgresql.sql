@@ -119,10 +119,10 @@ CREATE TABLE IF NOT EXISTS unit_types (
   valuation_factor NUMERIC(10,4),
   base_price NUMERIC(15,2),
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT uq_unit_types_position UNIQUE (position)
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE INDEX IF NOT EXISTS idx_unit_types_position ON unit_types(position);
 CREATE INDEX IF NOT EXISTS idx_unit_types_name ON unit_types(name);
 CREATE INDEX IF NOT EXISTS idx_unit_types_name_area ON unit_types(name, area);
 
