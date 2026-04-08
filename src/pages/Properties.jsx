@@ -33,6 +33,8 @@ const Properties = () => {
   const [typeFilter, setTypeFilter] = useState('all');
   const { toast } = useToast();
   const { user } = useAuth();
+  const userRole = user?.role || 'agente';
+  const userId = user?.id;
 
   useEffect(() => {
     async function fetchProperties() {
@@ -113,11 +115,11 @@ const Properties = () => {
   setAllItems([...propsWithImages, ...projectsWithTowers]);
 
         // Se usuário não for admin, buscar permissões
-        if (user && user.role !== 'admin') {
+        if (userId && userRole !== 'admin') {
           try {
             const [propIds, projIds] = await Promise.all([
-              propertyAccessService.getAccessiblePropertyIds(user.id).catch(()=>[]),
-              projectAccessService.get(user.id).catch(()=>[])
+              propertyAccessService.getAccessiblePropertyIds(userId).catch(()=>[]),
+              projectAccessService.get(userId).catch(()=>[])
             ]);
             setAccessibleIds(Array.isArray(propIds) ? propIds.map(Number) : []);
             setAccessibleProjectIds(Array.isArray(projIds) ? projIds.map(Number) : []);
@@ -139,7 +141,7 @@ const Properties = () => {
       setLoading(false);
     }
     fetchProperties();
-  }, [user]);
+  }, [userId, userRole]);
 
   const handleDelete = async (id, type) => {
     try {
@@ -164,7 +166,7 @@ const Properties = () => {
   };
 
   let myItems = allItems;
-  if (user.role !== 'admin') {
+  if (userRole !== 'admin') {
     if (accessibleIds === null || accessibleProjectIds === null) {
       myItems = [];
     } else {
@@ -199,7 +201,7 @@ const Properties = () => {
         <div>
           <h1 className="text-2xl font-bold text-white">Gestão de Imóveis e Obras</h1>
           <p className="text-slate-400">
-            {user.role === 'admin' ? "Gerencie todo o portfólio de imóveis e empreendimentos" : "Gerencie seu portfólio de imóveis e empreendimentos"}
+            {userRole === 'admin' ? "Gerencie todo o portfólio de imóveis e empreendimentos" : "Gerencie seu portfólio de imóveis e empreendimentos"}
           </p>
         </div>
         
@@ -251,7 +253,7 @@ const Properties = () => {
               <Building2 className="w-12 h-12 text-slate-400 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-white mb-2">Nenhum item encontrado</h3>
               <p className="text-slate-400 mb-6">
-                {accessibleIds !== null && accessibleProjectIds !== null && user.role !== 'admin' && (searchTerm === '' && statusFilter === 'all' && typeFilter === 'all') && allItems.length > 0 && myItems.length === 0
+                {accessibleIds !== null && accessibleProjectIds !== null && userRole !== 'admin' && (searchTerm === '' && statusFilter === 'all' && typeFilter === 'all') && allItems.length > 0 && myItems.length === 0
                   ? 'Nenhum item (imóvel ou empreendimento) foi liberado para o seu usuário pelo administrador.'
                   : (searchTerm || statusFilter !== 'all' || typeFilter !== 'all'
                       ? 'Tente ajustar os filtros de busca'

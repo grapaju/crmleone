@@ -39,7 +39,7 @@ const ProtectedRoute = ({ children, requiredRole }) => {
   if (!user) {
     return <Navigate to="/login" />;
   }
-  if (requiredRole && user.role !== requiredRole) {
+  if (requiredRole && user?.role !== requiredRole) {
     return <Navigate to="/" />;
   }
   return children;

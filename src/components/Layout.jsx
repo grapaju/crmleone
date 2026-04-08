@@ -42,6 +42,7 @@ const Layout = ({ children }) => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, logout } = useAuth();
+  const userRole = user?.role || 'agente';
 
   useEffect(() => {
     if (user) {
@@ -52,7 +53,7 @@ const Layout = ({ children }) => {
           const arr = Array.isArray(allAppointments) ? allAppointments : [];
           const userAppointments = arr.filter(app => {
             if (!app || !app.start || isNaN(new Date(app.start))) return false;
-            return (user.role === 'admin' || app.agent === user.name) && new Date(app.start).toISOString().split('T')[0] === today;
+            return (userRole === 'admin' || app.agent === user?.name) && new Date(app.start).toISOString().split('T')[0] === today;
           });
           setUpcomingAppointments(userAppointments);
         } catch (e) {
@@ -61,7 +62,7 @@ const Layout = ({ children }) => {
         }
       })();
     }
-  }, [user, location.pathname]);
+  }, [user, userRole, location.pathname]);
 
 
   const handleLogout = () => {
@@ -87,7 +88,7 @@ const Layout = ({ children }) => {
     { name: 'Configurações', href: '/settings', icon: Settings, roles: ['admin'] },
   ];
 
-  const filteredNavigation = navigation.filter(item => item.roles.includes(user?.role));
+  const filteredNavigation = navigation.filter(item => item.roles.includes(userRole));
 
   const handleSearchClick = () => {
     toast({
@@ -97,6 +98,7 @@ const Layout = ({ children }) => {
   };
 
   const handleEditProfile = () => {
+    if (!user?.id) return;
     navigate(`/agents/edit/${user.id}`);
   };
 

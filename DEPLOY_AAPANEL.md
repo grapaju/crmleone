@@ -1,384 +1,214 @@
-# Deploy do CRM Leone no aaPanel
+# Deploy Passo a Passo no aaPanel
 
-Este projeto funciona melhor no aaPanel quando frontend e API ficam no mesmo dominio, com a API exposta em `/api`.
+Este documento descreve o fluxo oficial para publicar este CRM em producao no aaPanel.
 
-Arquitetura recomendada:
+Objetivo do deploy:
 
-- Frontend React/Vite publicado como arquivos estaticos.
-- API PHP publicada no mesmo site em `/api`.
-- PostgreSQL separado, acessado pela API via `DATABASE_URL` ou `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`.
-- Uploads servidos por `/api/uploads/...`.
+1. Frontend React/Vite servido como arquivo estatico.
+2. API PHP no mesmo dominio via rota /api.
+3. Banco PostgreSQL.
+4. Uploads e logs persistentes entre deploys.
 
-## 1. Requisitos do servidor
+Importante:
 
-- aaPanel com Nginx.
-- PHP 8.1, 8.2 ou 8.3.
-- Extensoes PHP habilitadas: `pdo_pgsql`, `pgsql`, `mbstring`, `openssl`, `fileinfo`, `session`.
-- PostgreSQL acessivel a partir do servidor.
-- Composer disponivel no servidor ou build da API feito antes do upload.
-- Node.js apenas para gerar o build do frontend. Nao precisa rodar o frontend em Node em producao.
+1. Nao use Node Project para este sistema em producao.
+2. O fluxo correto e Website Nginx + PHP-FPM + PostgreSQL.
 
-## 1.1. Cenario deste servidor
+## 1. Pre-requisitos
 
-Valores informados para este deploy:
+No servidor, confirme:
 
-- dominio: `https://leonecrm.psys.tech/`
-- raiz do site: `/www/wwwroot/crmleone`
-- versao do PHP: `8.3`
-- estrategia de publicacao: `Git`
+1. Nginx instalado pelo aaPanel.
+2. PHP 8.2 ou 8.3 com extensoes pdo_pgsql e pgsql.
+3. PostgreSQL acessivel.
+4. Node 18+ para gerar build.
+5. Composer para dependencias da API.
+6. Git instalado.
 
-## 2. Estrutura de publicacao recomendada
+## 2. Estrutura recomendada
 
-No seu servidor, publique em uma estrutura assim:
+Use a estrutura abaixo para evitar conflitos e apagamento acidental:
 
-```text
-/www/wwwroot/crmleone/
-  index.html
-  assets/
-  api/
-    agents.php
-    login.php
-    properties.php
-    uploads/
-    logs/
-  src/
-  vendor/
-```
+1. Codigo fonte Git: /www/wwwroot/crmleone
+2. Publicacao ativa: /www/wwwroot/crmleone/.deploy/live
+3. Dados persistentes: /www/wwwroot/crmleone/.deploy/shared
 
-Como chegar nisso:
+## 3. Primeiro deploy no servidor
 
-1. Gere o build do frontend com `npm install` e `npm run build`.
-2. Copie o conteudo de `dist/` para a raiz do site no aaPanel.
-3. Copie o conteudo de `api/php-api-crm/public/` para a pasta `/api` do site.
-4. Copie `api/php-api-crm/src/` para `/src` na raiz do site.
-5. Copie `api/php-api-crm/vendor/` para `/vendor` na raiz do site.
+No terminal do servidor:
 
-Motivo dessa estrutura:
+1. Clonar repositorio
 
-- Os arquivos PHP em `/api` fazem `require_once '../src/...'` e `require_once '../vendor/...'`.
-- Se voce publicar a pasta PHP em outro formato, esses caminhos relativos quebram.
+  cd /www/wwwroot
+  git clone https://github.com/grapaju/crmleone.git crmleone
 
-## 3. Publicacao por Git no aaPanel
+2. Entrar no projeto e permitir scripts
 
-Se o repositorio sera clonado diretamente em `/www/wwwroot/crmleone`, o fluxo mais simples e:
+  cd /www/wwwroot/crmleone
+  chmod +x tools/deploy-aapanel-git.sh
+  chmod +x tools/aapanel-hook-deploy.sh
 
-1. aaPanel faz `git pull` no diretorio do site.
-2. voce roda build do frontend no proprio servidor.
-3. voce roda `composer install` para a API.
-4. voce publica o build em `/www/wwwroot/crmleone` e sincroniza a API publica para `/www/wwwroot/crmleone/api`.
+3. Rodar deploy completo
 
-O projeto ja ficou com um script util para isso:
-
-- `tools/deploy-aapanel-git.sh`
-
-Fluxo sugerido no servidor:
-
-```bash
-cd /www/wwwroot/crmleone
-chmod +x tools/deploy-aapanel-git.sh
-bash tools/deploy-aapanel-git.sh
-```
-
-O script faz:
-
-- `git pull --ff-only`
-- `npm install`
-- `npm run build`
-- `composer install --no-dev --optimize-autoloader`
-- sincronizacao de `dist/` para a raiz do site
-- sincronizacao de `api/php-api-crm/public/` para `/api`
-- sincronizacao de `api/php-api-crm/src/` para `/src`
-- sincronizacao de `api/php-api-crm/vendor/` para `/vendor`
-
-Observacao:
-
-- o script preserva `api/uploads` e `api/logs`
-- se rodar como root, ele tambem ajusta permissao dessas duas pastas
-
-## 4. Build e upload do frontend
-
-Na maquina de build:
-
-```bash
-npm install
-npm run build
-```
-
-Depois envie para o servidor:
-
-- `dist/index.html` e `dist/assets/` para a raiz do site.
-- Nao envie a pasta `src` do frontend para producao; ela nao e usada depois do build.
-
-## 5. Publicacao da API PHP
-
-Na API:
-
-1. Entre em `api/php-api-crm`.
-2. Rode `composer install --no-dev --optimize-autoloader`.
-3. Envie para o servidor:
-   - `public/*` para `/api`
-   - `src/` para `/src`
-   - `vendor/` para `/vendor`
-
-Permissoes importantes:
-
-- `/api/uploads` precisa ser gravavel pelo usuario do PHP.
-- `/api/logs` precisa ser gravavel pelo usuario do PHP.
-
-Se essas pastas nao existirem, crie antes do primeiro uso.
-
-## 6. Banco PostgreSQL
-
-Crie o banco e importe o schema nativo PostgreSQL do projeto:
-
-```bash
-psql -h HOST -p 5432 -U USUARIO -d crm_imoveis -f database/schema.postgresql.sql
-```
-
-O arquivo usado em producao deve ser:
-
-- `database/schema.postgresql.sql`
-
-Nao use `database/schema.sql` para PostgreSQL; ele e o schema legado de MySQL/MariaDB.
-
-## 7. Variaveis de ambiente da API
-
-O backend aceita duas formas:
-
-1. `DATABASE_URL`
-2. Variaveis separadas: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`
-
-Exemplo com variaveis separadas:
-
-```text
-DB_HOST=127.0.0.1
-DB_PORT=5432
-DB_NAME=crm_imoveis
-DB_USER=crm_user
-DB_PASSWORD=sua_senha_forte
-PHP_APP_TZ=America/Sao_Paulo
-RUN_AUTOMATIONS_WINDOW=5
-CORS_ALLOWED_ORIGIN=https://seu-dominio.com.br
-```
-
-Se o aaPanel estiver usando PHP-FPM, configure essas variaveis no pool PHP do site ou em mecanismo equivalente do painel. Se isso nao estiver disponivel, voce pode adaptar o carregamento para usar um arquivo de ambiente local do servidor.
-
-Observacao:
-
-- Se frontend e API estiverem no mesmo dominio, `CORS_ALLOWED_ORIGIN` normalmente nao e necessario.
-- So configure essa variavel se realmente for usar frontend e API em origens diferentes.
-
-## 8. Configuracao Nginx no aaPanel
-
-Objetivo:
-
-- Arquivos estaticos do frontend na raiz.
-- Qualquer `/api/*.php` executado pelo PHP.
-- Qualquer rota `/api/uploads/...` servida como arquivo estatico.
-- Qualquer rota SPA cair em `index.html`.
-
-Bloco adaptado para o seu site:
-
-```nginx
-root /www/wwwroot/crmleone;
-index index.php index.html;
-
-location ^~ /api/uploads/ {
-  alias /www/wwwroot/crmleone/api/uploads/;
-    access_log off;
-    expires 7d;
-    try_files $uri =404;
-}
-
-location ~ ^/api/(.+\.php)$ {
-    include fastcgi_params;
-  fastcgi_param SCRIPT_FILENAME /www/wwwroot/crmleone/api/$1;
-    fastcgi_param SCRIPT_NAME /api/$1;
-  fastcgi_pass unix:/tmp/php-cgi-83.sock;
-}
-
-location / {
-    try_files $uri $uri/ /index.html;
-}
-```
-
-Ajustes obrigatorios:
-
-- confirme no aaPanel se o socket do PHP 8.3 e realmente `unix:/tmp/php-cgi-83.sock`
-- se o aaPanel usar upstream nomeado em vez de socket, troque o `fastcgi_pass` de acordo com o painel
+  bash tools/deploy-aapanel-git.sh
 
 Observacao importante:
 
-- A regra `location ^~ /api/uploads/` deve vir antes da regra SPA.
-- A regra `location ~ ^/api/(.+\.php)$` deve existir antes do fallback de SPA.
-- Sem isso, login, uploads e endpoints PHP vao cair no `index.html` e gerar 404, 405 ou erro de parse no frontend.
+1. Execute com bash, nao com sh.
+2. Se usar sh, o script pode falhar antes de publicar a pasta api.
 
-## 9. Primeiro usuario admin
+Esse script ja executa:
 
-O projeto possui um script utilitario:
+1. git pull --ff-only
+2. npm ci
+3. npm run build -- --outDir .deploy/live --emptyOutDir
+4. composer install --no-dev --optimize-autoloader
+5. Publicacao de api, src e vendor na pasta live
+6. Link simbolico de uploads e logs para .deploy/shared
 
-- `/api/create_admin.php`
+## 4. Configurar Website no aaPanel
 
-Ele cria o usuario padrao:
+No aaPanel, em Website:
 
-- email: `admin@imovelcrm.com`
-- senha inicial: `admin123`
+1. Crie o site do dominio.
+2. Tipo de servidor: Nginx.
+3. Versao PHP: 8.3 (ou 8.2).
+4. Document root do site: /www/wwwroot/crmleone/.deploy/live
 
-Fluxo recomendado:
+## 5. Configurar Nginx da SPA + API
 
-1. Rode uma unica vez.
-2. Entre no sistema.
-3. Altere a senha imediatamente.
-4. Remova ou proteja o arquivo depois disso.
+No arquivo de configuracao do site, use o bloco abaixo e ajuste apenas o fastcgi_pass conforme seu servidor:
 
-## 10. Cron para automacoes
+  root /www/wwwroot/crmleone/.deploy/live;
+  index index.php index.html;
 
-Se voce usa envio automatico de tabelas, agende este script:
+  location ^~ /api/uploads/ {
+     alias /www/wwwroot/crmleone/.deploy/shared/uploads/;
+     access_log off;
+     expires 7d;
+     try_files $uri =404;
+  }
 
-- `/api/run_automations.php`
+  location ~ ^/api/(.+\.php)$ {
+     include fastcgi_params;
+     fastcgi_param SCRIPT_FILENAME /www/wwwroot/crmleone/.deploy/live/api/$1;
+     fastcgi_param SCRIPT_NAME /api/$1;
+     fastcgi_pass unix:/tmp/php-cgi-83.sock;
+  }
 
-Exemplo de cron a cada 5 minutos:
+  location / {
+     try_files $uri $uri/ /index.html;
+  }
 
-```bash
-*/5 * * * * /usr/bin/php /www/wwwroot/crmleone/api/run_automations.php
-```
+Ordem das regras e obrigatoria:
 
-O script respeita:
+1. /api/uploads/ primeiro.
+2. /api/*.php depois.
+3. Fallback da SPA por ultimo.
 
-- `PHP_TZ` para timezone do processo
-- `RUN_AUTOMATIONS_WINDOW` para janela de disparo em minutos
+Sem essa ordem, login e endpoints da API vao quebrar.
 
-## 11. Checklist de validacao apos publicar
+## 6. Banco PostgreSQL
 
-Valide nesta ordem:
+Crie banco e importe schema:
 
-1. Abra a raiz do site e confirme que a SPA carrega.
-2. Teste `https://seu-dominio/api/login.php` com uma requisicao real.
-3. Faça login pelo frontend.
-4. Teste leitura de propriedades, projetos, unidades e leads.
-5. Teste upload de imagem e documento.
-6. Verifique se arquivos aparecem em `/api/uploads`.
-7. Verifique logs em `/api/logs`.
+  sudo -u postgres psql -c "CREATE DATABASE crm_imoveis;"
+  sudo -u postgres psql -d crm_imoveis -f /www/wwwroot/crmleone/database/schema.postgresql.sql
 
-## 12. Pontos de atencao especificos deste projeto
+## 7. Variaveis de ambiente da API
 
-### CORS e login
+Defina no ambiente do PHP-FPM (pool do site) uma das opcoes:
 
-O projeto foi claramente pensado para frontend e API no mesmo host, usando caminhos relativos como `/api/login.php` e `/api/properties.php`.
+Opcao A, URL unica:
 
-Isso e o que voce deve manter em producao.
+1. DATABASE_URL=postgres://usuario:senha@host:5432/crm_imoveis
 
-Se tentar separar frontend e API em dominios diferentes, voce vai ter que revisar pelo menos estes arquivos:
+Opcao B, variaveis separadas:
 
-- `api/php-api-crm/public/login.php`
-- `api/php-api-crm/public/documents.php`
+1. DB_HOST=127.0.0.1
+2. DB_PORT=5432
+3. DB_NAME=crm_imoveis
+4. DB_USER=crm_user
+5. DB_PASSWORD=senha_forte
+6. PHP_APP_TZ=America/Sao_Paulo
 
-Neles ha cabecalhos CORS acoplados ao ambiente local. Em deploy same-origin isso deixa de ser relevante; em cross-origin isso vira problema de login e sessao.
+Arquivo de conexao:
 
-### Uploads
+1. api/php-api-crm/src/config/database.php
 
-As imagens e documentos sao gravados abaixo de `/api/uploads`.
+## 8. Permissoes de uploads e logs
 
-Sem permissao de escrita no disco:
+Garanta escrita:
 
-- upload de imagens falha
-- upload de documentos falha
-- anexos de tabelas podem falhar
+  mkdir -p /www/wwwroot/crmleone/.deploy/shared/uploads
+  mkdir -p /www/wwwroot/crmleone/.deploy/shared/logs
+  chown -R www:www /www/wwwroot/crmleone/.deploy/shared/uploads /www/wwwroot/crmleone/.deploy/shared/logs
+  chmod -R 775 /www/wwwroot/crmleone/.deploy/shared/uploads /www/wwwroot/crmleone/.deploy/shared/logs
 
-### PHPMailer
+## 9. Primeiro acesso
 
-Os envios de e-mail dependem do Composer e do `vendor/autoload.php`.
+Opcional para criar admin inicial:
 
-Se `vendor/` nao estiver presente na raiz esperada, funcionalidades de SMTP e automacao vao quebrar.
+1. Acesse https://SEU_DOMINIO/api/create_admin.php apenas uma vez.
+2. Login inicial: admin@imovelcrm.com
+3. Senha inicial: admin123
+4. Troque a senha imediatamente.
 
-## 13. Fluxo resumido recomendado
+## 10. Atualizacao de versao
 
-1. Criar o site no aaPanel com Nginx + PHP 8.3.
-2. Criar o banco PostgreSQL e importar `database/schema.postgresql.sql`.
-3. Clonar o repositorio Git em `/www/wwwroot/crmleone`.
-4. Rodar `bash tools/deploy-aapanel-git.sh` no servidor.
-5. Publicar a API em `/api`, com `src/` e `vendor/` na raiz do site.
-6. Configurar Nginx com fallback SPA e execucao de `/api/*.php`.
-7. Ajustar permissoes de `/api/uploads` e `/api/logs`.
-8. Criar o admin inicial.
-9. Testar login, listagens, uploads e e-mail.
-10. Configurar cron se usar automacoes.
+Para atualizar sem quebrar deploy:
 
-## 14. Problemas comuns no aaPanel
+  cd /www/wwwroot/crmleone
+  bash tools/deploy-aapanel-git.sh
 
-### 404 ou 405 no login
+Esse comando atualiza codigo, rebuilda e republica.
 
-Quase sempre e Nginx encaminhando `/api/login.php` para a SPA. Revise a ordem das regras do site.
+## 11. Cron de automacoes
 
-### A SPA abre, mas tudo da API falha
+Se usar automacoes por e-mail, adicione cron:
 
-Normalmente um destes casos:
+  */5 * * * * /usr/bin/php /www/wwwroot/crmleone/.deploy/live/api/run_automations.php >> /www/wwwroot/crmleone/.deploy/shared/logs/cron_automations.log 2>&1
 
-- `src/` nao foi publicado na raiz correta.
-- `vendor/` nao foi publicado na raiz correta.
-- variaveis do banco nao chegaram ao PHP.
-- extensao `pdo_pgsql` nao esta habilitada.
+## 12. Validacao rapida pos-deploy
 
-### Upload retorna sucesso parcial ou erro 500
+Executar:
 
-Verifique:
+1. nginx -t
+2. service nginx reload
+3. Abrir https://SEU_DOMINIO
+4. Abrir https://SEU_DOMINIO/api/login.php
 
-- permissao de escrita em `/api/uploads`
-- limite de upload do PHP
-- `post_max_size`
-- `upload_max_filesize`
-- logs em `/api/logs`
+Se a URL da API responder, o roteamento esta correto.
 
-### Automacoes nao disparam
+## 13. Erro 502 no dominio
 
-Verifique:
+Checklist objetivo:
 
-- cron do servidor
-- caminho do binario PHP no cron
-- timezone do processo
-- logs do script em `/api/logs`
+1. O dominio esta no Website, nao no Node Project.
+2. Document root aponta para /www/wwwroot/crmleone/.deploy/live.
+3. fastcgi_pass confere com o PHP real do servidor.
+4. Nginx sem erro de sintaxe.
+5. Pasta live contem index.html e pasta api.
 
-## 15. O que eu recomendo para este deploy
+Comandos de diagnostico:
 
-Para este projeto, a opcao mais segura e:
+1. nginx -t
+2. ls -la /www/wwwroot/crmleone/.deploy/live
+3. tail -n 100 /www/wwwlogs/SEU_DOMINIO.error.log
 
-- um unico dominio
-- frontend na raiz
-- API PHP em `/api`
-- PostgreSQL externo ou local
-- cron para automacoes
+## 14. Erros comuns e causa real
 
-## 16. Sequencia operacional para o seu caso
+1. npm start falha: este projeto nao possui script start em producao.
+2. git pull bloqueado: ha mudancas locais no checkout; use somente o script de deploy oficial.
+3. API retorna HTML da SPA: ordem das regras Nginx incorreta.
+4. Upload falha: permissao de escrita em .deploy/shared/uploads.
 
-1. No aaPanel, aponte o site `leonecrm.psys.tech` para `/www/wwwroot/crmleone` usando PHP 8.3.
-2. Faça clone do repositorio Git nesse mesmo diretorio.
-3. No terminal do servidor, rode:
+## 15. Fluxo curto para operar no dia a dia
 
-```bash
-cd /www/wwwroot/crmleone
-git config --global --add safe.directory /www/wwwroot/crmleone
-chmod +x tools/deploy-aapanel-git.sh
-bash tools/deploy-aapanel-git.sh
-```
+Sempre que precisar publicar:
 
-4. Configure o Nginx do site com o bloco da secao 8.
-5. Configure as variaveis de banco no PHP 8.3 do site.
-6. Crie as pastas gravaveis se necessario:
+1. cd /www/wwwroot/crmleone
+2. bash tools/deploy-aapanel-git.sh
+3. nginx -t && service nginx reload
 
-```bash
-mkdir -p /www/wwwroot/crmleone/api/uploads /www/wwwroot/crmleone/api/logs
-chown -R www:www /www/wwwroot/crmleone/api/uploads /www/wwwroot/crmleone/api/logs
-chmod -R 775 /www/wwwroot/crmleone/api/uploads /www/wwwroot/crmleone/api/logs
-```
-
-7. Importe o banco PostgreSQL.
-8. Acesse `/api/create_admin.php` uma unica vez.
-9. Teste login em `https://leonecrm.psys.tech/`.
-10. Configure o cron de automacoes se precisar.
-
-Se voce quiser, no proximo passo eu posso te passar um roteiro operacional exato para o seu servidor aaPanel, incluindo:
-
-1. estrutura final de pastas no Linux
-2. bloco Nginx pronto para colar no site
-3. ordem de comandos de build e upload
-4. check de validacao depois do go-live
+Com isso, frontend e API sobem juntos no mesmo dominio.

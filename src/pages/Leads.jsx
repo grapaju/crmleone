@@ -31,6 +31,8 @@ const Leads = () => {
   const [scoreFilter, setScoreFilter] = useState("all");
   const { toast } = useToast();
   const { user } = useAuth();
+  const userRole = user?.role || "agente";
+  const userName = user?.name || "";
 
   useEffect(() => {
     async function fetchLeads() {
@@ -66,17 +68,17 @@ const Leads = () => {
   };
 
   const myLeads =
-    user.role === "admin"
+    userRole === "admin"
       ? allLeads
       : allLeads.filter((lead) => {
           // Log para depuração: comparar lead.agent_name e user.name
           console.log("[DEBUG] Comparando lead.agent_name e user.name:", {
             "lead.id": lead.id,
             "lead.agent_name": lead.agent_name,
-            "user.name": user.name,
-            iguais: lead.agent_name === user.name,
+            "user.name": userName,
+            iguais: lead.agent_name === userName,
           });
-          return lead.agent_name === user.name;
+          return lead.agent_name === userName;
         });
 
   const filteredLeads = myLeads.filter((lead) => {
@@ -114,7 +116,7 @@ const Leads = () => {
         <div>
           <h1 className="text-2xl font-bold text-white">Gestão de Leads</h1>
           <p className="text-slate-400">
-            {user.role === "admin"
+            {userRole === "admin"
               ? "Gerencie e pontue todas as oportunidades de negócio"
               : "Gerencie e pontue suas oportunidades de negócio"}
           </p>
