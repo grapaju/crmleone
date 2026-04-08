@@ -56,6 +56,46 @@ class Project
         }
     }
 
+    private function resolveFeatureNameColumn($table)
+    {
+        // Try preferred columns in order and return the first existing one.
+        if ($this->tableHasColumn($table, 'name')) return 'name';
+        if ($this->tableHasColumn($table, 'nome')) return 'nome';
+        return null;
+    }
+
+    private function fetchProjectFeaturesSafe($projectId)
+    {
+        if (!$this->tableExists('project_features')) {
+            return [];
+        }
+
+        // If detected table/column is inconsistent with runtime DB, fallback dynamically.
+        $table = $this->featuresTable;
+        $col = $this->featuresNameCol;
+        if (!$this->tableExists($table) || !$this->tableHasColumn($table, $col)) {
+            if ($this->tableExists('features')) {
+                $table = 'features';
+                $col = $this->resolveFeatureNameColumn('features') ?: 'name';
+            } elseif ($this->tableExists('caracteristicas')) {
+                $table = 'caracteristicas';
+                $col = $this->resolveFeatureNameColumn('caracteristicas') ?: 'nome';
+            }
+        }
+
+        try {
+            $pf = $this->pdo->prepare("SELECT pf.feature_id, f." . $col . " AS name FROM project_features pf LEFT JOIN " . $table . " f ON f.id = pf.feature_id WHERE pf.project_id = ?");
+            $pf->execute([$projectId]);
+            $featRows = $pf->fetchAll(PDO::FETCH_ASSOC);
+            return array_map(function ($r) {
+                return ['id' => (int)$r['feature_id'], 'name' => $r['name'] ?? null];
+            }, $featRows ?: []);
+        } catch (PDOException $e) {
+            // Never break project listing/details due to optional feature join.
+            return [];
+        }
+    }
+
     private function tableHasColumn($table, $column)
     {
         try {
@@ -262,17 +302,9 @@ class Project
                 $decoded = json_decode($row['features'], true);
                 $row['features'] = $decoded === null ? [] : $decoded;
             }
-            // If relational project_features exists, load them
-                if ($this->tableExists('project_features')) {
-                $pf = $this->pdo->prepare("SELECT pf.feature_id, f." . $this->featuresNameCol . " AS name FROM project_features pf LEFT JOIN " . $this->featuresTable . " f ON f.id = pf.feature_id WHERE pf.project_id = ?");
-                $pf->execute([$row['id']]);
-                $featRows = $pf->fetchAll(PDO::FETCH_ASSOC);
-                $row['projectFeatures'] = array_map(function ($r) {
-                    return ['id' => (int)$r['feature_id'], 'name' => $r['name']];
-                }, $featRows);
-                // also keep features key for backward compatibility (array of ids)
-                $row['features'] = array_map(fn($r) => $r['id'], $row['projectFeatures']);
-            }
+            $row['projectFeatures'] = $this->fetchProjectFeaturesSafe($row['id']);
+            // also keep features key for backward compatibility (array of ids)
+            $row['features'] = array_map(fn($r) => $r['id'], $row['projectFeatures']);
         }
         return $rows;
     }
@@ -286,13 +318,8 @@ class Project
             $decoded = json_decode($row['features'], true);
             $row['features'] = $decoded === null ? [] : $decoded;
         }
-        if ($row && $this->tableExists('project_features')) {
-            $pf = $this->pdo->prepare("SELECT pf.feature_id, f." . $this->featuresNameCol . " AS name FROM project_features pf LEFT JOIN " . $this->featuresTable . " f ON f.id = pf.feature_id WHERE pf.project_id = ?");
-            $pf->execute([$row['id']]);
-            $featRows = $pf->fetchAll(PDO::FETCH_ASSOC);
-            $row['projectFeatures'] = array_map(function ($r) {
-                return ['id' => (int)$r['feature_id'], 'name' => $r['name']];
-            }, $featRows);
+        if ($row) {
+            $row['projectFeatures'] = $this->fetchProjectFeaturesSafe($row['id']);
             $row['features'] = array_map(fn($r) => $r['id'], $row['projectFeatures']);
         }
         return $row;
