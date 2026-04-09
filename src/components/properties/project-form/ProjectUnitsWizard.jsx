@@ -7,6 +7,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Bot, ChevronLeft, ChevronRight, PlusCircle, Trash2, UploadCloud } from "lucide-react";
 import { unitTypeService } from "@/services/unitTypeService";
+import { projectTowerTypologyService } from "@/services/projectTowerTypologyService";
 import { cubService } from "@/services/cubService";
 import { computeFactorKR, computePriceKR, roundMoney } from "@/lib/pricing";
 
@@ -33,6 +34,7 @@ const ProjectUnitsWizard = ({
   const [step, setStep] = useState(1);
   const [unitTypes, setUnitTypes] = useState([]);
   const [loadingTypes, setLoadingTypes] = useState(false);
+  const [loadingSavedTypologies, setLoadingSavedTypologies] = useState(false);
   const [isPersisting, setIsPersisting] = useState(false);
   const [isSavingCub, setIsSavingCub] = useState(false);
   const [lastGenerated, setLastGenerated] = useState([]);
@@ -254,12 +256,136 @@ const ProjectUnitsWizard = ({
     return `nm:${name}|a:${area}|d:${bedrooms}|s:${suites}|v:${parking}`;
   };
 
+  const mapContextRowToTypology = (row, idx = 0) => {
+    const valuation = row?.valuation_factor != null && row?.valuation_factor !== ''
+      ? String(row.valuation_factor).replace('.', ',')
+      : '1,00';
+
+    return {
+      id: row?.id != null ? `ctx_${row.id}` : `ctx_${Date.now()}_${idx}`,
+      name: row?.name || row?.position || `Tipo ${String.fromCharCode(65 + (idx % 26))}`,
+      unit_type_id: row?.unit_type_id != null ? String(row.unit_type_id) : '',
+      area: row?.area != null ? formatAreaDecimal(row.area) : '',
+      bedrooms: row?.bedrooms != null ? String(row.bedrooms) : '',
+      suites: row?.suites != null ? String(row.suites) : '',
+      parking: row?.parking_spots != null ? String(row.parking_spots) : '',
+      appreciation_factor: valuation,
+      floors_start: row?.floors_start != null ? String(row.floors_start) : '',
+      floors_end: row?.floors_end != null ? String(row.floors_end) : '',
+      position: row?.position || '',
+      per_floor_quantity: row?.per_floor_quantity != null ? String(row.per_floor_quantity) : '1',
+    };
+  };
+
+  const toContextTypologyPayload = (tp) => {
+    const parsedArea = parseAreaDecimal(tp?.area);
+    return {
+      unit_type_id:
+        tp?.unit_type_id && String(tp.unit_type_id).match(/^\d+$/)
+          ? Number(tp.unit_type_id)
+          : null,
+      name: tp?.name || null,
+      position: tp?.position || tp?.name || null,
+      parking_spots: Number(tp?.parking || 0),
+      bedrooms: tp?.bedrooms ?? '',
+      suites: tp?.suites ?? '',
+      area: parsedArea > 0 ? parsedArea : null,
+      valuation_factor:
+        tp?.appreciation_factor != null && tp?.appreciation_factor !== ''
+          ? parseDecimal(tp.appreciation_factor)
+          : null,
+      floors_start:
+        tp?.floors_start != null && tp?.floors_start !== ''
+          ? Number(tp.floors_start)
+          : null,
+      floors_end:
+        tp?.floors_end != null && tp?.floors_end !== ''
+          ? Number(tp.floors_end)
+          : null,
+      per_floor_quantity:
+        tp?.per_floor_quantity != null && tp?.per_floor_quantity !== ''
+          ? Number(tp.per_floor_quantity)
+          : 1,
+    };
+  };
+
+  const recoverTypologiesFromContext = async ({ merge = false, silent = false } = {}) => {
+    if (!projectId) {
+      if (!silent) toast({ title: 'Obra não salva', description: 'Salve a obra para carregar tipologias por torre.' });
+      return false;
+    }
+
+    if (!general.towerId || general.towerId === 'ALL') {
+      if (!silent) toast({ title: 'Selecione uma torre', description: 'Escolha uma torre específica para recuperar tipologias salvas.' });
+      return false;
+    }
+
+    const towerIdNum = Number(general.towerId);
+    if (!Number.isFinite(towerIdNum) || towerIdNum <= 0) {
+      if (!silent) toast({ title: 'Torre inválida', description: 'Seleção de torre inválida para recuperação.' });
+      return false;
+    }
+
+    setLoadingSavedTypologies(true);
+    try {
+      const res = await projectTowerTypologyService.listByContext(projectId, towerIdNum);
+      const rows = res?.data || res || [];
+      if (!Array.isArray(rows) || rows.length === 0) {
+        if (!silent) {
+          toast({ title: 'Sem tipologias salvas', description: 'Não existem tipologias salvas para esta obra/torre.' });
+        }
+        return false;
+      }
+
+      const recovered = rows.map((row, idx) => mapContextRowToTypology(row, idx));
+      setTypologies((prev) => {
+        if (!merge) return recovered;
+        const out = [...prev];
+        const seen = new Set(prev.map((tp) => typologySignature(tp)));
+        recovered.forEach((tp) => {
+          const sig = typologySignature(tp);
+          if (!seen.has(sig)) {
+            seen.add(sig);
+            out.push(tp);
+          }
+        });
+        return out;
+      });
+
+      if (!silent) {
+        toast({
+          title: 'Tipologias carregadas',
+          description: merge
+            ? `${recovered.length} tipologia(s) mesclada(s) da base da obra/torre.`
+            : `${recovered.length} tipologia(s) carregada(s) da base da obra/torre.`,
+        });
+      }
+      return true;
+    } catch (e) {
+      if (!silent) {
+        toast({ title: 'Erro ao recuperar tipologias', description: e.message || 'Falha inesperada', variant: 'destructive' });
+      }
+      return false;
+    } finally {
+      setLoadingSavedTypologies(false);
+    }
+  };
+
+  const recoverTypologies = async ({ merge = false } = {}) => {
+    const recoveredFromContext = await recoverTypologiesFromContext({ merge, silent: true });
+    if (recoveredFromContext) return;
+    recoverTypologiesFromExistingUnits({ merge });
+  };
+
   const recoverTypologiesFromExistingUnits = ({ merge = false } = {}) => {
     const targetTowerId = String(general.towerId || '').trim();
-    const source = (Array.isArray(existingUnits) ? existingUnits : []).filter((u) => {
+    const allUnits = Array.isArray(existingUnits) ? existingUnits : [];
+    const byTower = allUnits.filter((u) => {
       if (!targetTowerId || targetTowerId === 'ALL') return true;
       return String(u?.torre_id ?? u?.tower_id ?? '').trim() === targetTowerId;
     });
+    const usingTowerFallback = targetTowerId && targetTowerId !== 'ALL' && byTower.length === 0 && allUnits.length > 0;
+    const source = usingTowerFallback ? allUnits : byTower;
 
     if (!source.length) {
       toast({ title: 'Sem unidades para recuperar', description: 'Não há unidades salvas para a torre selecionada.' });
@@ -353,8 +479,8 @@ const ProjectUnitsWizard = ({
     toast({
       title: 'Tipologias recuperadas',
       description: merge
-        ? `${recovered.length} tipologia(s) analisada(s) e mesclada(s) com a lista atual.`
-        : `${recovered.length} tipologia(s) recuperada(s) das unidades já salvas.`,
+        ? `${recovered.length} tipologia(s) analisada(s) e mesclada(s) com a lista atual${usingTowerFallback ? ' (usando unidades de todas as torres)' : ''}.`
+        : `${recovered.length} tipologia(s) recuperada(s) das unidades já salvas${usingTowerFallback ? ' (usando unidades de todas as torres)' : ''}.`,
     });
   };
 
@@ -1014,10 +1140,10 @@ const ProjectUnitsWizard = ({
             <Button type="button" variant="outline" onClick={addTypology}>
               <PlusCircle className="w-4 h-4 mr-2" /> Adicionar tipologia
             </Button>
-            <Button type="button" variant="secondary" onClick={() => recoverTypologiesFromExistingUnits({ merge: false })}>
-              Recuperar tipologias
+            <Button type="button" variant="secondary" disabled={loadingSavedTypologies} onClick={() => recoverTypologies({ merge: false })}>
+              {loadingSavedTypologies ? 'Recuperando...' : 'Recuperar tipologias'}
             </Button>
-            <Button type="button" variant="ghost" onClick={() => recoverTypologiesFromExistingUnits({ merge: true })}>
+            <Button type="button" variant="ghost" disabled={loadingSavedTypologies} onClick={() => recoverTypologies({ merge: true })}>
               Mesclar recuperadas
             </Button>
             <Button type="button" onClick={async ()=>{
@@ -1051,15 +1177,39 @@ const ProjectUnitsWizard = ({
                 const listRes = await unitTypeService.list();
                 const list = listRes?.data || listRes || [];
                 setUnitTypes(list);
-                setTypologies(prev => prev.map(tp => {
+                const resolvedTypologies = typologies.map((tp) => {
                   if (savedByLocalId[String(tp.id)]) {
                     return { ...tp, unit_type_id: Number(savedByLocalId[String(tp.id)]) };
                   }
                   const areaParsed = parseAreaDecimal(tp.area);
-                  const match = list.find(ut => String(ut.name||ut.position||'').trim() === String(tp.name||'').trim() && Number(ut.area||0) === areaParsed);
+                  const match = list.find(
+                    (ut) =>
+                      String(ut.name || ut.position || '').trim() === String(tp.name || '').trim() &&
+                      Number(ut.area || 0) === areaParsed
+                  );
                   return match ? { ...tp, unit_type_id: match.id } : tp;
-                }));
-                toast({ title:'Tipologias salvas', description:`${saved.length} registro(s) em unit_types.`});
+                });
+                setTypologies(resolvedTypologies);
+
+                let contextSaved = false;
+                if (projectId && general.towerId && general.towerId !== 'ALL') {
+                  const towerIdNum = Number(general.towerId);
+                  if (Number.isFinite(towerIdNum) && towerIdNum > 0) {
+                    const payloadRows = resolvedTypologies
+                      .map((tp) => toContextTypologyPayload(tp))
+                      .filter((tp) => tp.position && tp.area && tp.area > 0);
+
+                    await projectTowerTypologyService.replaceByContext(projectId, towerIdNum, payloadRows);
+                    contextSaved = true;
+                  }
+                }
+
+                toast({
+                  title:'Tipologias salvas',
+                  description: contextSaved
+                    ? `${saved.length} registro(s) em unit_types e contexto obra/torre atualizado.`
+                    : `${saved.length} registro(s) em unit_types.${projectId ? ' Selecione uma torre específica para salvar no contexto da obra.' : ''}`,
+                });
               } catch(e){
                 toast({ title:'Erro ao salvar tipologias', description: e.message || 'Falha inesperada', variant:'destructive' });
               }

@@ -49,6 +49,7 @@ const ConstructionProjectForm = () => {
         const response = await projectService.getProjectById(id);
         const data = response && response.data ? response.data : response;
         if (data) {
+          const projectIdResolved = data.id || id;
           // normalize projectFeatures: API may return array of objects {id,name} or array of ids or array of names
           const allOptions = Object.values(propertyOptions).flat();
           const incomingFeatures =
@@ -86,6 +87,27 @@ const ConstructionProjectForm = () => {
             });
           }
 
+          // Carrega torres/unidades pelos endpoints dedicados para garantir dados completos no modo edição.
+          let fetchedTowers = [];
+          let fetchedUnits = [];
+          try {
+            const [towersResp, unitsResp] = await Promise.all([
+              towerService.getTowersByProject(projectIdResolved),
+              unitService.getUnitsByProject(projectIdResolved),
+            ]);
+
+            fetchedTowers = Array.isArray(towersResp) ? towersResp : [];
+
+            const unitsRows = Array.isArray(unitsResp?.data)
+              ? unitsResp.data
+              : Array.isArray(unitsResp)
+              ? unitsResp
+              : [];
+            fetchedUnits = unitsRows.map((u) => unitService.mapFromApi(u));
+          } catch (loadRelErr) {
+            console.warn("Falha ao carregar torres/unidades da obra:", loadRelErr);
+          }
+
           setFormData((prev) => ({
             ...prev,
             id: data.id || id,
@@ -111,8 +133,8 @@ const ConstructionProjectForm = () => {
               data.deliveryDate || data.delivery_date || prev.deliveryDate,
             projectFeatures: normalizedFeatures,
             featureIdMap,
-            towers: data.towers || prev.towers,
-            units: data.units || prev.units,
+            towers: fetchedTowers.length ? fetchedTowers : (data.towers || prev.towers),
+            units: fetchedUnits.length ? fetchedUnits : (data.units || prev.units),
           }));
         } else {
           toast({
