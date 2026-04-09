@@ -170,6 +170,14 @@ const ProjectUnitsWizard = ({
     setTypologies((prev) => prev.map((t) => (t.id === id ? { ...t, [field]: value } : t)));
   }, []);
 
+  const parseFloorNumber = (value) => {
+    if (value == null || value === '') return null;
+    const n = Number(value);
+    if (Number.isFinite(n)) return n;
+    const parsed = parseInt(String(value).replace(/[^0-9-]/g, ''), 10);
+    return Number.isNaN(parsed) ? null : parsed;
+  };
+
   // helpers
   const parseDecimal = (masked) => {
     if (!masked && masked !== 0) return 0;
@@ -233,6 +241,121 @@ const ProjectUnitsWizard = ({
     const parsed = parseAreaDecimal(value);
     if (!Number.isFinite(parsed) || Number.isNaN(parsed)) return "";
     return parsed.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+  const typologySignature = (tp) => {
+    const unitTypeId = String(tp?.unit_type_id ?? '').trim();
+    if (unitTypeId) return `ut:${unitTypeId}`;
+    const name = String(tp?.name ?? '').trim().toLowerCase();
+    const area = parseAreaDecimal(tp?.area ?? 0).toFixed(2);
+    const bedrooms = String(tp?.bedrooms ?? '').trim();
+    const suites = String(tp?.suites ?? '').trim();
+    const parking = String(tp?.parking ?? '').trim();
+    return `nm:${name}|a:${area}|d:${bedrooms}|s:${suites}|v:${parking}`;
+  };
+
+  const recoverTypologiesFromExistingUnits = ({ merge = false } = {}) => {
+    const targetTowerId = String(general.towerId || '').trim();
+    const source = (Array.isArray(existingUnits) ? existingUnits : []).filter((u) => {
+      if (!targetTowerId || targetTowerId === 'ALL') return true;
+      return String(u?.torre_id ?? u?.tower_id ?? '').trim() === targetTowerId;
+    });
+
+    if (!source.length) {
+      toast({ title: 'Sem unidades para recuperar', description: 'Não há unidades salvas para a torre selecionada.' });
+      return;
+    }
+
+    const groups = new Map();
+    source.forEach((u) => {
+      const unitTypeId = u?.unit_type_id != null ? String(u.unit_type_id).trim() : '';
+      const typeName = String(u?.type ?? u?.tipo ?? '').trim();
+      const areaNum = parseAreaDecimal(u?.area_private ?? u?.area_privativa ?? u?.area_total ?? 0);
+      const bedrooms = String(u?.bedrooms ?? u?.dormitorios ?? '').trim();
+      const suites = String(u?.suites ?? '').trim();
+      const parking = String(u?.parking ?? u?.vagas ?? '').trim();
+      const floor = parseFloorNumber(u?.floor ?? u?.pavimento);
+      const key = unitTypeId
+        ? `ut:${unitTypeId}`
+        : `sig:${typeName.toLowerCase()}|${areaNum.toFixed(2)}|${bedrooms}|${suites}|${parking}`;
+
+      if (!groups.has(key)) {
+        groups.set(key, {
+          unitTypeId,
+          typeName,
+          areaNum,
+          bedrooms,
+          suites,
+          parking,
+          floors: [],
+          byFloorCount: {},
+        });
+      }
+
+      const g = groups.get(key);
+      if (Number.isFinite(floor)) {
+        g.floors.push(floor);
+        g.byFloorCount[floor] = (g.byFloorCount[floor] || 0) + 1;
+      }
+    });
+
+    const defaultStart = String(Math.max(1, Number(general.initialFloor || 1)));
+    const defaultEnd = String(Number(general.floors || 10));
+
+    const recovered = Array.from(groups.values()).map((g, idx) => {
+      const minFloor = g.floors.length ? Math.min(...g.floors) : Number(defaultStart);
+      const maxFloor = g.floors.length ? Math.max(...g.floors) : Number(defaultEnd);
+      const perFloor = Object.values(g.byFloorCount || {}).length
+        ? Math.max(...Object.values(g.byFloorCount))
+        : 1;
+
+      const posSource = `${g.typeName}`.toLowerCase();
+      let position = 'frente';
+      if (/fundo/.test(posSource)) position = 'fundos';
+      else if (/lateral/.test(posSource)) position = 'lateral';
+      else if (/canto/.test(posSource)) position = 'canto';
+
+      const fallbackName = g.unitTypeId
+        ? (unitTypes.find((ut) => String(ut.id) === String(g.unitTypeId))?.name || unitTypes.find((ut) => String(ut.id) === String(g.unitTypeId))?.position || '')
+        : '';
+      const name = g.typeName || fallbackName || `Tipo ${String.fromCharCode(65 + (idx % 26))}`;
+
+      return {
+        id: `recovered_${Date.now()}_${idx}`,
+        name,
+        unit_type_id: g.unitTypeId || '',
+        area: g.areaNum > 0 ? formatAreaDecimal(g.areaNum) : '',
+        bedrooms: g.bedrooms,
+        suites: g.suites,
+        parking: g.parking,
+        appreciation_factor: '1,00',
+        floors_start: String(minFloor),
+        floors_end: String(maxFloor),
+        position,
+        per_floor_quantity: String(perFloor),
+      };
+    });
+
+    setTypologies((prev) => {
+      if (!merge) return recovered;
+      const out = [...prev];
+      const seen = new Set(prev.map((tp) => typologySignature(tp)));
+      recovered.forEach((tp) => {
+        const sig = typologySignature(tp);
+        if (!seen.has(sig)) {
+          seen.add(sig);
+          out.push(tp);
+        }
+      });
+      return out;
+    });
+
+    toast({
+      title: 'Tipologias recuperadas',
+      description: merge
+        ? `${recovered.length} tipologia(s) analisada(s) e mesclada(s) com a lista atual.`
+        : `${recovered.length} tipologia(s) recuperada(s) das unidades já salvas.`,
+    });
   };
 
   // máscara monetária pt-BR leve: só dígitos e vírgula, uma vírgula, 2 casas decimais
@@ -891,6 +1014,12 @@ const ProjectUnitsWizard = ({
             <Button type="button" variant="outline" onClick={addTypology}>
               <PlusCircle className="w-4 h-4 mr-2" /> Adicionar tipologia
             </Button>
+            <Button type="button" variant="secondary" onClick={() => recoverTypologiesFromExistingUnits({ merge: false })}>
+              Recuperar tipologias
+            </Button>
+            <Button type="button" variant="ghost" onClick={() => recoverTypologiesFromExistingUnits({ merge: true })}>
+              Mesclar recuperadas
+            </Button>
             <Button type="button" onClick={async ()=>{
               try{
                 // Salvar/atualizar tipologias como unit_types
@@ -1155,9 +1284,16 @@ const ProjectUnitsWizard = ({
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                     {Object.entries(coeffConfig.positionFactors || {}).map(([label, val]) => (
                       <div key={label} className="flex items-center gap-2">
-                        <Input className="h-9" value={label} onChange={(e)=>{
-                          const old = label; const v = e.target.value; setCoeffConfig((p)=>{
-                            const pf = { ...(p.positionFactors || {}) }; const current = pf[old]; delete pf[old]; pf[v] = current; return { ...p, positionFactors: pf };
+                        <Input className="h-9" defaultValue={label} onBlur={(e)=>{
+                          const old = label;
+                          const v = String(e.target.value || '').trim();
+                          if (!v || v === old) return;
+                          setCoeffConfig((p)=>{
+                            const pf = { ...(p.positionFactors || {}) };
+                            const current = pf[old];
+                            delete pf[old];
+                            pf[v] = current;
+                            return { ...p, positionFactors: pf };
                           });
                         }} />
                         <Input className="h-9" value={val} onChange={(e)=> setCoeffConfig((p)=> ({...p, positionFactors: { ...(p.positionFactors||{}), [label]: maskDecimal4(e.target.value) }}))} />
@@ -1185,9 +1321,16 @@ const ProjectUnitsWizard = ({
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                       {Object.entries(coeffConfig.garage.factors || {}).map(([spots, fac]) => (
                         <div key={spots} className="flex items-center gap-2">
-                          <Input className="h-9" value={spots} onChange={(e)=>{
-                            const old = spots; const v = maskInteger(e.target.value) || '0'; setCoeffConfig((p)=>{
-                              const fs = { ...(p.garage.factors || {}) }; const cur = fs[old]; delete fs[old]; fs[v] = cur; return { ...p, garage: { ...p.garage, factors: fs } };
+                          <Input className="h-9" defaultValue={spots} onBlur={(e)=>{
+                            const old = spots;
+                            const v = maskInteger(e.target.value) || '0';
+                            if (!v || v === old) return;
+                            setCoeffConfig((p)=>{
+                              const fs = { ...(p.garage.factors || {}) };
+                              const cur = fs[old];
+                              delete fs[old];
+                              fs[v] = cur;
+                              return { ...p, garage: { ...p.garage, factors: fs } };
                             });
                           }} />
                           <Input className="h-9" value={fac} onChange={(e)=> setCoeffConfig((p)=> ({...p, garage: { ...p.garage, factors: { ...(p.garage.factors||{}), [spots]: maskDecimal4(e.target.value) } }}))} />
