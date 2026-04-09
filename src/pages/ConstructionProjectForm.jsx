@@ -137,14 +137,49 @@ const ConstructionProjectForm = () => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   const handleTowerChange = (towers) =>
     setFormData((prev) => ({ ...prev, towers }));
-  const handleUnitsGenerated = async (newUnits) => {
-    // If project already saved, persist units immediately to backend
-    if (formData.id) {
+  const handleUnitsGenerated = async (newUnits, options = {}) => {
+    const shouldPersistToDb = Boolean(options?.persistToDb && formData.id);
+
+    const makeUnitKey = (u) => {
+      const tower = String(u?.tower_id ?? u?.torre_id ?? "").trim();
+      const unit = String(u?.unit_number ?? u?.numero_unidade ?? "").trim();
+      return tower && unit ? `${tower}::${unit}` : "";
+    };
+
+    const existingKeys = new Set(
+      (Array.isArray(formData.units) ? formData.units : [])
+        .map((u) => makeUnitKey(u))
+        .filter(Boolean)
+    );
+
+    const incomingUnique = [];
+    const seenIncoming = new Set();
+    for (const u of Array.isArray(newUnits) ? newUnits : []) {
+      const key = makeUnitKey(u);
+      if (!key) {
+        incomingUnique.push(u);
+        continue;
+      }
+      if (existingKeys.has(key) || seenIncoming.has(key)) continue;
+      seenIncoming.add(key);
+      incomingUnique.push(u);
+    }
+
+    if (!incomingUnique.length) {
+      toast({
+        title: "Nenhuma unidade nova",
+        description: "As unidades geradas já existem no formulário atual.",
+      });
+      return;
+    }
+
+    // Persistir no banco apenas quando a ação vier aprovada explicitamente
+    if (shouldPersistToDb) {
       const updatedUnits = [...formData.units];
       const successes = [];
       const errors = [];
-      for (let i = 0; i < newUnits.length; i++) {
-        const u = newUnits[i];
+      for (let i = 0; i < incomingUnique.length; i++) {
+        const u = incomingUnique[i];
         // build payload with English keys
         const payloadUnit = {
           project_id: formData.id,
@@ -190,12 +225,12 @@ const ConstructionProjectForm = () => {
           variant: "destructive",
         });
     } else {
-      // project not yet saved — add temporary units to state
+      // Apenas staging local (ainda sem gravação no banco)
       setFormData((prev) => ({
         ...prev,
         units: [
           ...prev.units,
-          ...newUnits.map((u) => ({
+          ...incomingUnique.map((u) => ({
             ...u,
             id: u.id ?? `gen_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
             obra_id: u.obra_id ?? null,

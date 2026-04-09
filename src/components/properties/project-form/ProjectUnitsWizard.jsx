@@ -7,7 +7,6 @@ import { useToast } from "@/components/ui/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Bot, ChevronLeft, ChevronRight, PlusCircle, Trash2, UploadCloud } from "lucide-react";
 import { unitTypeService } from "@/services/unitTypeService";
-import { unitService } from "@/services/unitService";
 import { cubService } from "@/services/cubService";
 import { computeFactorKR, computePriceKR, roundMoney } from "@/lib/pricing";
 
@@ -366,6 +365,8 @@ const ProjectUnitsWizard = ({
 
   const generateUnits = async (opts = {}) => {
     const silent = !!opts.silent;
+    const emitToParent = opts.emitToParent === true;
+    const ignoreExistingUnits = !!opts.ignoreExistingUnits;
     const target = general.towerId;
     if (!target) {
       toast({ title: "Erro", description: "Selecione uma torre.", variant: "destructive" });
@@ -468,7 +469,7 @@ const ProjectUnitsWizard = ({
           if (!tip) continue; // sem tipologias definidas
 
           const key = `${t.id}::${unitId}`;
-          const duplicateExisting = Array.isArray(existingUnits) && existingUnits.some((u) => {
+          const duplicateExisting = !ignoreExistingUnits && Array.isArray(existingUnits) && existingUnits.some((u) => {
             const matchTower = String(u.torre_id ?? u.tower_id) === String(t.id);
             const matchUnit = String(u.numero_unidade ?? u.unit_number) === String(unitId);
             return matchTower && matchUnit;
@@ -581,27 +582,28 @@ const ProjectUnitsWizard = ({
     }
 
     setLastGenerated(generated);
-    onUnitsGenerated(generated);
+    if (emitToParent) {
+      await onUnitsGenerated(generated, { persistToDb: false, approved: false });
+    }
     if (!silent) toast({ title: '✅ Unidades geradas', description: `${generated.length} unidades criadas a partir das tipologias.` });
     setConfirmAgreed(false);
   };
 
   const persistGenerated = async () => {
-    if (!projectId) {
-      toast({ title: 'Projeto não salvo', description: 'Salve a obra antes de persistir as unidades.', variant: 'destructive' });
-      return;
-    }
     if (!lastGenerated.length) {
       toast({ title: 'Nada a salvar', description: 'Gere unidades primeiro.' });
       return;
     }
+    if (!confirmAgreed) {
+      toast({ title: 'Aprovação pendente', description: 'Marque a confirmação antes de salvar.' });
+      return;
+    }
     setIsPersisting(true);
     try {
-      const prepared = lastGenerated.map((u) => ({ ...u, project_id: projectId, obra_id: projectId }));
-      const results = await unitService.saveUnitsBulk(prepared);
-      const ok = results.filter((r) => r.ok).length;
-      const fail = results.length - ok;
-      toast({ title: '📤 Persistência concluída', description: `${ok} salvas, ${fail} falharam.` });
+      await onUnitsGenerated(lastGenerated, { persistToDb: !!projectId, approved: true });
+      if (!projectId) {
+        toast({ title: '✅ Unidades aprovadas', description: 'As unidades foram aprovadas e serão salvas ao salvar a obra.' });
+      }
     } catch (e) {
       toast({ title: 'Erro ao salvar', description: e.message || 'Falha inesperada', variant: 'destructive' });
     } finally {
@@ -623,7 +625,7 @@ const ProjectUnitsWizard = ({
     </CardHeader>
   );
 
-  const Step1 = () => (
+  const renderStep1 = () => (
     <Card className="glass-effect border-slate-700">
       <StepHeader title="Etapa 1 — Dados gerais" icon={<Bot className="w-5 h-5" />} />
       <CardContent className="space-y-4">
@@ -879,7 +881,7 @@ const ProjectUnitsWizard = ({
     );
   });
 
-  const Step2 = () => (
+  const renderStep2 = () => (
     <Card className="glass-effect border-slate-700">
       <StepHeader title="Etapa 2 — Tipologias" icon={<Bot className="w-5 h-5" />} />
       <CardContent className="space-y-4">
@@ -1054,7 +1056,7 @@ const ProjectUnitsWizard = ({
     </Card>
   );
 
-  const Step3 = () => (
+  const renderStep3 = () => (
     <Card className="glass-effect border-slate-700">
       <StepHeader title="Etapa 3 — Regras de valorização" icon={<Bot className="w-5 h-5" />} />
       <CardContent className="space-y-4">
@@ -1071,7 +1073,7 @@ const ProjectUnitsWizard = ({
                       const row = (cubList||[]).find(r => String(r.id ?? r.ID) === String(id));
                       if (row) {
                         setGeneral((p)=> ({...p, cubValue: row.valorAtual != null ? String(row.valorAtual).replace('.', ',') : '', cubDate: row.vigencia ? String(row.vigencia).slice(0,7) : '' }));
-                        generateUnits({ silent: true });
+                        generateUnits({ silent: true, emitToParent: false, ignoreExistingUnits: true });
                       }
                     }} disabled={loadingCubs || !cubList.length}>
                       {!cubList.length && <option>Sem CUB cadastrado</option>}
@@ -1103,7 +1105,7 @@ const ProjectUnitsWizard = ({
                       const last = rows[0];
                       if (last) { setSelectedCubId(String(last.id ?? last.ID)); setGeneral((p)=> ({...p, cubValue: last.valorAtual != null ? String(last.valorAtual).replace('.', ',') : '', cubDate: last.vigencia ? String(last.vigencia).slice(0,7) : '' })); }
                       setNewCub({ valor:'', vigencia:'' });
-                      generateUnits({ silent: true });
+                      generateUnits({ silent: true, emitToParent: false, ignoreExistingUnits: true });
                     }catch(e){
                       toast({ title:'Erro ao salvar CUB', description: e.message || 'Falha inesperada', variant:'destructive' });
                     }finally{
@@ -1211,7 +1213,7 @@ const ProjectUnitsWizard = ({
           <div className="flex items-center justify-between">
             <div className="text-white font-semibold">Pré-visualização</div>
             <div className="flex gap-2">
-              <Button type="button" variant="outline" onClick={() => generateUnits({ silent: true })}>Recalcular com parâmetros atuais</Button>
+              <Button type="button" variant="outline" onClick={() => generateUnits({ silent: true, emitToParent: false, ignoreExistingUnits: true })}>Recalcular com parâmetros atuais</Button>
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -1273,8 +1275,8 @@ const ProjectUnitsWizard = ({
 
         <div className="flex flex-col sm:flex-row justify-end gap-2 pt-2">
           <Button type="button" onClick={() => generateUnits()}>Gerar unidades</Button>
-          <Button type="button" variant="outline" className="flex items-center gap-2" disabled={!projectId || !lastGenerated.length || isPersisting || !confirmAgreed} onClick={persistGenerated}>
-            <UploadCloud className="w-4 h-4" /> {isPersisting ? 'Salvando...' : 'Confirmar e salvar na API'}
+          <Button type="button" variant="outline" className="flex items-center gap-2" disabled={!lastGenerated.length || isPersisting || !confirmAgreed} onClick={persistGenerated}>
+            <UploadCloud className="w-4 h-4" /> {isPersisting ? 'Salvando...' : (projectId ? 'Confirmar e salvar na API' : 'Confirmar para salvar com a obra')}
           </Button>
         </div>
       </CardContent>
@@ -1283,9 +1285,9 @@ const ProjectUnitsWizard = ({
 
   return (
     <div className="space-y-4">
-      {step === 1 && <Step1 />}
-      {step === 2 && <Step2 />}
-      {step === 3 && <Step3 />}
+      {step === 1 && renderStep1()}
+      {step === 2 && renderStep2()}
+      {step === 3 && renderStep3()}
 
       <div className="flex justify-between items-center">
         <Button type="button" variant="outline" disabled={step === 1} onClick={() => setStep((s) => Math.max(1, s - 1))}>
